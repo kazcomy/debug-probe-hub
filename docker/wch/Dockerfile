@@ -7,7 +7,8 @@ RUN apk add --no-cache \
     libusb-dev \
     eudev-dev \
     pkgconfig \
-    libusb
+    libusb \
+    linux-headers
 
 # Clone and build minichlink
 RUN git clone https://github.com/cnlohr/ch32v003fun.git /tmp/ch32v003fun && \
