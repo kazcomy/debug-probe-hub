@@ -1,0 +1,37 @@
+[Unit]
+Description=Debug Probe Hub Server
+Documentation=https://github.com/yourusername/debug-probe-hub
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=debug
+Group=debug
+WorkingDirectory=/opt/debug-probe-hub
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Ensure Docker containers are running
+ExecStartPre=/usr/bin/docker-compose up -d
+
+# Start the HTTP server
+ExecStart=/usr/bin/python3 /opt/debug-probe-hub/server.py
+
+# Stop containers on service stop
+ExecStop=/usr/bin/docker-compose down
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+
+# Resource limits
+LimitNOFILE=65536
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=debug-probe-hub
+
+[Install]
+WantedBy=multi-user.target

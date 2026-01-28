@@ -1,0 +1,27 @@
+#cloud-config
+# Debug Probe Hub - Network Configuration
+# This file configures static IP addressing
+
+# Network configuration version
+version: 2
+
+# Network interfaces
+ethernets:
+  # Change 'ens18' to match your interface name (check with 'ip a')
+  # Common names: ens18, eth0, enp0s3
+  ens18:
+    dhcp4: no
+    dhcp6: no
+    addresses:
+      - 192.168.1.234/24  # Static IP address with subnet mask
+    # Optional IPv6 address
+    # - "2001:db8::1/64"
+    routes:
+      - to: default
+        via: 192.168.1.1  # Default gateway
+    nameservers:
+      addresses:
+        - 8.8.8.8          # Primary DNS
+        - 8.8.4.4          # Secondary DNS
+      search:
+        - local            # DNS search domain
