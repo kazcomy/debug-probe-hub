@@ -96,8 +96,13 @@ class Config:
         if not target:
             return False
 
+        probe = self.get_probe(probe_id)
+        if not probe:
+            return False
+
+        probe_interface = probe.get('interface')
         compatible_probes = target.get('compatible_probes', [])
-        return probe_id in compatible_probes
+        return probe_interface in compatible_probes
 
     def get_container_for_target(self, target_name: str) -> Optional[str]:
         """Get the container name for a target"""

@@ -60,7 +60,7 @@ targets:
   nrf52840:
     container: standard
     description: "Nordic nRF52840"
-    compatible_probes: [1, 2, 3]
+    compatible_probes: [jlink, cmsis-dap]
     commands:
       jlink:
         debug: "JLinkGDBServer -device nRF52840_xxAA -if SWD -speed 4000 -port {gdb_port} -select USB={serial}"
@@ -82,9 +82,9 @@ targets:
   esp32s3:
     container: esp32
     description: "Espressif ESP32-S3"
-    compatible_probes: [1, 2, 3]
+    compatible_probes: [jlink, cmsis-dap]
     commands:
-      jlink:
+      jlink: #ESP32 S3 is not officially supported by SEGGER as of 2026.01
         debug: "openocd -f interface/jlink.cfg -f board/esp32s3-builtin.cfg -c 'jlink serial {serial}' -c 'gdb_port {gdb_port}' -c 'bindto 0.0.0.0'"
         flash: "openocd -f interface/jlink.cfg -f board/esp32s3-builtin.cfg -c 'jlink serial {serial}' -c 'program_esp {firmware_path} verify reset exit'"
       cmsis-dap:
@@ -94,9 +94,9 @@ targets:
   stm32g3:
     container: standard
     description: "STM32G3 series"
-    compatible_probes: [1, 2, 3]
+    compatible_probes: [jlink, cmsis-dap]
     commands:
-      jlink:
+      jlink: #ESP32 S3 is not officially supported by SEGGER as of 2026.01
         debug: "openocd -f interface/jlink.cfg -f target/stm32g0x.cfg -c 'jlink serial {serial}' -c 'gdb_port {gdb_port}' -c 'bindto 0.0.0.0'"
         flash: "openocd -f interface/jlink.cfg -f target/stm32g0x.cfg -c 'jlink serial {serial}' -c 'program {firmware_path} verify reset exit'"
       cmsis-dap:
@@ -106,7 +106,7 @@ targets:
   ch32v:
     container: wch
     description: "WCH CH32V series (RISC-V)"
-    compatible_probes: [4]
+    compatible_probes: [wch-link]
     commands:
       wch-link:
         debug: "minichlink -G"

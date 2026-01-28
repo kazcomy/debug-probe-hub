@@ -7,7 +7,9 @@
       "Bash(sudo cp:*)",
       "Bash(sudo systemctl:*)",
       "Bash(systemctl status:*)",
-      "Bash(systemctl is-enabled:*)"
+      "Bash(systemctl is-enabled:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)"
     ]
   }
 }
