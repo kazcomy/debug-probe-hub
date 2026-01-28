@@ -3,12 +3,12 @@ Description=Debug Probe Hub Server
 Documentation=https://github.com/yourusername/debug-probe-hub
 After=network-online.target docker.service debug-probe-hub-setup.service
 Wants=network-online.target
-Requires=docker.service
+Requires=docker.service debug-probe-hub-setup.service
 
 [Service]
 Type=simple
-User=debug
-Group=debug
+User=kazcomy
+Group=kazcomy
 WorkingDirectory=/opt/debug-probe-hub
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 

@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git ls-files:*)"
+      "Bash(git ls-files:*)",
+      "Bash(journalctl:*)",
+      "Bash(sudo journalctl:*)",
+      "Bash(sudo cp:*)",
+      "Bash(sudo systemctl:*)",
+      "Bash(systemctl status:*)",
+      "Bash(systemctl is-enabled:*)"
     ]
   }
 }

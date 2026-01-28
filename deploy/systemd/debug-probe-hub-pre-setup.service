@@ -7,8 +7,8 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-User=debug
-Group=debug
+User=kazcomy
+Group=kazcomy
 WorkingDirectory=/opt/debug-probe-hub
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
@@ -39,3 +39,5 @@ SyslogIdentifier=debug-probe-hub-pre-setup
 
 [Install]
 WantedBy=multi-user.target
+# Trigger setup service after this completes successfully
+Also=debug-probe-hub-setup.service
