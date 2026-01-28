@@ -1,0 +1,31 @@
+#cloud-config
+# Debug Probe Hub - Network Configuration Template
+#
+# Usage:
+# 1. Copy this file to cloud-init-network.yml (gitignored)
+# 2. Edit the TODO sections with your network settings
+# 3. Upload to Proxmox: scp deploy/cloud-init-network.yml root@proxmox:/var/lib/vz/snippets/debug-probe-hub-network.yml
+
+# Network configuration version
+version: 2
+
+# Network interfaces
+ethernets:
+  # TODO: Change 'ens18' to match your interface name (check with 'ip a' after first boot)
+  # Common names: ens18, eth0, enp0s3
+  ens18:
+    dhcp4: no
+    dhcp6: no
+    addresses:
+      - 192.168.1.234/24  # TODO: Change to your desired static IP with subnet mask
+    # Optional IPv6 address
+    # - "2001:db8::1/64"
+    routes:
+      - to: default
+        via: 192.168.1.1  # TODO: Change to your gateway IP
+    nameservers:
+      addresses:
+        - 8.8.8.8          # TODO: Change to your DNS servers
+        - 8.8.4.4
+      search:
+        - local            # TODO: Change to your DNS search domain

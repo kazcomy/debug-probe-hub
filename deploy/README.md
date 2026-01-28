@@ -51,17 +51,18 @@ See detailed steps below for full explanation.
 
 ### Step 1: Prepare Cloud-init Configuration
 
-1. Edit [`cloud-init-user-data.yml`](cloud-init-user-data.yml):
-   - **IMPORTANT**: Change username from `kazcomy` to your desired username
-     - Search and replace ALL occurrences (appears in users, usermod, chown, sudo, sed commands)
-   - Add your SSH public key (if using SSH key authentication)
-   - Adjust timezone if needed
-   - Update GitHub repository URL to your fork
+1. Copy templates and customize:
+   ```bash
+   cd deploy
+   cp cloud-init-user-data.template.yml cloud-init-user-data.yml
+   cp cloud-init-network.template.yml cloud-init-network.yml
+   ```
 
-2. Edit [`cloud-init-network.yml`](cloud-init-network.yml):
-   - Change static IP: `192.168.1.234` (default)
-   - Change gateway: `192.168.1.1` (default)
-   - Adjust interface name if needed (check with `ip a` on Ubuntu)
+2. Edit the files and replace all `TODO` placeholders:
+   - `cloud-init-user-data.yml`: Username, SSH public key, GitHub username, timezone
+   - `cloud-init-network.yml`: IP address, gateway, DNS servers, interface name
+
+   Note: These files are gitignored and won't be committed.
 
 ### Step 2: Create VM in Proxmox (Command Line)
 

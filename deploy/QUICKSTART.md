@@ -7,6 +7,7 @@ This is a condensed guide for experienced users. For detailed explanations, see 
 - Proxmox VE server
 - SSH access to Proxmox host
 - Your edited `cloud-init-user-data.yml` and `cloud-init-network.yml` files
+  - **CRITICAL**: You MUST configure authentication (SSH key or password) in `cloud-init-user-data.yml` or you won't be able to login!
 
 ## One-Command Setup
 
@@ -45,12 +46,21 @@ SETUP_SCRIPT
 
 ## Step-by-Step (Minimal)
 
-### 1. Upload Cloud-init Files
+### 1. Prepare and Upload Cloud-init Files
 
 ```bash
 # On your local machine
-scp deploy/cloud-init-user-data.yml root@proxmox:/var/lib/vz/snippets/debug-probe-hub-user.yml
-scp deploy/cloud-init-network.yml root@proxmox:/var/lib/vz/snippets/debug-probe-hub-network.yml
+cd deploy
+cp cloud-init-user-data.template.yml cloud-init-user-data.yml
+cp cloud-init-network.template.yml cloud-init-network.yml
+
+# Edit and replace TODO placeholders
+nano cloud-init-user-data.yml  # Fix: YOUR_USERNAME_HERE, YOUR_SSH_PUBLIC_KEY_HERE, YOUR_GITHUB_USERNAME
+nano cloud-init-network.yml    # Fix: IP, gateway, DNS
+
+# Upload to Proxmox
+scp cloud-init-user-data.yml root@proxmox:/var/lib/vz/snippets/debug-probe-hub-user.yml
+scp cloud-init-network.yml root@proxmox:/var/lib/vz/snippets/debug-probe-hub-network.yml
 ```
 
 ### 2. Create VM on Proxmox

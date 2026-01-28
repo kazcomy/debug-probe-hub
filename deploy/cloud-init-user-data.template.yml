@@ -1,0 +1,89 @@
+#cloud-config
+# Debug Probe Hub - Cloud-init User Data Template
+#
+# Usage:
+# 1. Copy this file to cloud-init-user-data.yml (gitignored)
+# 2. Edit the TODO sections with your actual values
+# 3. Upload to Proxmox: scp deploy/cloud-init-user-data.yml root@proxmox:/var/lib/vz/snippets/debug-probe-hub-user.yml
+
+# Hostname
+hostname: debug-probe-hub
+
+# Users TODO: Customize this section
+users:
+  - name: YOUR_USERNAME_HERE  # TODO: Change to your username
+    groups: [sudo, docker]
+    sudo: ['ALL=(ALL) NOPASSWD:ALL']
+    shell: /bin/bash
+    # TODO: Add your SSH public keys here (can add multiple)
+    # Generate key: ssh-keygen -t ed25519 -C "your_email@example.com"
+    # Get public key: cat ~/.ssh/id_ed25519.pub
+    ssh_authorized_keys:
+      - YOUR_SSH_PUBLIC_KEY_HERE  # TODO: Paste your public key
+      # - ssh-ed25519 AAAAC3Nza... second_key@example.com  # Optional: add more keys
+
+# Timezone TODO: Change if needed
+timezone: Asia/Tokyo
+
+# Package updates
+package_update: true
+package_upgrade: true
+
+# Install packages
+packages:
+  - git
+  - python3
+  - python3-pip
+  - curl
+  - udev
+  - usbutils
+  - jq                      # JSON processor for API queries
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+# Run commands on first boot
+runcmd:
+  # Install Docker
+  - curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+  - sh /tmp/get-docker.sh
+  - usermod -aG docker YOUR_USERNAME_HERE  # TODO: This will be replaced by sed below
+  - systemctl enable docker
+  - systemctl start docker
+
+  # Install Python dependencies
+  - pip3 install --upgrade pip
+  - pip3 install pyyaml
+
+  # Clone debug-probe-hub repository
+  - git clone https://github.com/YOUR_GITHUB_USERNAME/debug-probe-hub.git /opt/debug-probe-hub  # TODO: Change GitHub username
+  - chown -R YOUR_USERNAME_HERE:YOUR_USERNAME_HERE /opt/debug-probe-hub
+
+  # Run setup script
+  - cd /opt/debug-probe-hub && sudo -u YOUR_USERNAME_HERE bash setup.sh || true
+
+  # Install systemd service (replace user placeholder)
+  - sed 's/User=debug/User=YOUR_USERNAME_HERE/g; s/Group=debug/Group=YOUR_USERNAME_HERE/g' /opt/debug-probe-hub/deploy/systemd/debug-probe-hub.service > /etc/systemd/system/debug-probe-hub.service
+  - systemctl daemon-reload
+  - systemctl enable debug-probe-hub.service
+  - systemctl start debug-probe-hub.service
+
+# Create working directories
+write_files:
+  - path: /tmp/flash_staging/.keep
+    content: ""
+    permissions: '0777'
+
+# Final message
+final_message: |
+  Debug Probe Hub setup complete!
+
+  Access the server at: http://<your-ip>:8080
+
+  SSH in as 'YOUR_USERNAME_HERE' user to manage the system.
+
+  Check status:
+    systemctl status debug-probe-hub
+    docker ps
+    curl http://localhost:8080/status

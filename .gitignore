@@ -15,7 +15,8 @@ venv/
 *.egg-info/
 
 # Deployment secrets (don't commit SSH keys or sensitive configs)
-deploy/cloud-init-user-data-custom.yml
+deploy/cloud-init-user-data.yml
+deploy/cloud-init-network.yml
 deploy/*.tfvars
 
 # IDE
