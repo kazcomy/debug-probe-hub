@@ -64,7 +64,7 @@ For automated deployment on Proxmox with static IP configuration:
 **See [deploy/README.md](deploy/README.md) for complete Proxmox deployment guide**
 
 Quick summary:
-1. Prepare Ubuntu cloud image
+1. Prepare Ubuntu 24.04 LTS cloud image (or 22.04 LTS)
 2. Configure `deploy/cloud-init-user-data.yml` (add SSH key)
 3. Configure `deploy/cloud-init-network.yml` (set static IP: 192.168.1.234)
 4. Create VM in Proxmox with cloud-init
@@ -75,7 +75,7 @@ Quick summary:
 
 ### Prerequisites
 
-- Linux host (tested on Ubuntu 22.04)
+- Linux host (tested on Ubuntu 24.04 LTS and 22.04 LTS)
 - Docker and Docker Compose
 - Python 3.8+
 - Root access (for udev rules)

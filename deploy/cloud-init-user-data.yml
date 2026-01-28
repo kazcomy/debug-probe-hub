@@ -7,17 +7,14 @@
 # Hostname
 hostname: debug-probe-hub
 
-# Users
+# Users TODO: Change this section
 users:
-  - name: debug
+  - name: kazcomy 
     groups: [sudo, docker]
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
     shell: /bin/bash
-    # Add your SSH public key here
-    ssh_authorized_keys:
-      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... your-public-key-here
 
-# Timezone
+# Timezone TODO: Change this section
 timezone: Asia/Tokyo
 
 # Package updates
@@ -51,8 +48,8 @@ runcmd:
   - pip3 install --upgrade pip
   - pip3 install pyyaml
 
-  # Clone debug-probe-hub repository
-  - git clone https://github.com/yourusername/debug-probe-hub.git /opt/debug-probe-hub
+  # Clone debug-probe-hub repository 
+  - git clone https://github.com/kazcomy/debug-probe-hub.git /opt/debug-probe-hub
   - chown -R debug:debug /opt/debug-probe-hub
 
   # Run setup script

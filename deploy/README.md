@@ -13,9 +13,11 @@ The deployment uses Cloud-init to automatically configure a fresh Ubuntu VM with
 ## Prerequisites
 
 1. **Proxmox VE** server
-2. **Ubuntu Cloud Image** (22.04 LTS recommended)
-   - Download from: https://cloud-images.ubuntu.com/releases/22.04/release/
-   - Use the `.img` file (e.g., `ubuntu-22.04-server-cloudimg-amd64.img`)
+2. **Ubuntu Cloud Image** (24.04 LTS recommended, 22.04 LTS also supported)
+   - **24.04 LTS**: https://cloud-images.ubuntu.com/releases/24.04/release/
+   - **22.04 LTS**: https://cloud-images.ubuntu.com/releases/22.04/release/
+   - Use the `.img` file (e.g., `ubuntu-24.04-server-cloudimg-amd64.img`)
+   - 24.04 LTS is recommended for longer support (until 2034) and newer packages
 3. **USB Debug Probes** physically connected to the Proxmox host
 
 ## Quick Start
@@ -40,7 +42,12 @@ The deployment uses Cloud-init to automatically configure a fresh Ubuntu VM with
    ```bash
    # On Proxmox host
    cd /var/lib/vz/template/iso
-   wget https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img
+
+   # Ubuntu 24.04 LTS (recommended)
+   wget https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img
+
+   # Or Ubuntu 22.04 LTS
+   # wget https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img
    ```
 
 2. **Create VM**:
@@ -56,8 +63,10 @@ The deployment uses Cloud-init to automatically configure a fresh Ubuntu VM with
 
 3. **Import Cloud Image**:
    ```bash
-   # On Proxmox host
-   qm importdisk 100 /var/lib/vz/template/iso/ubuntu-22.04-server-cloudimg-amd64.img local-lvm
+   # On Proxmox host (use 24.04 or 22.04 depending on what you downloaded)
+   qm importdisk 100 /var/lib/vz/template/iso/ubuntu-24.04-server-cloudimg-amd64.img local-lvm
+   # Or for 22.04:
+   # qm importdisk 100 /var/lib/vz/template/iso/ubuntu-22.04-server-cloudimg-amd64.img local-lvm
    ```
 
 4. **Attach Disk**:
@@ -87,7 +96,9 @@ The deployment uses Cloud-init to automatically configure a fresh Ubuntu VM with
 # Variables
 VM_ID=100
 VM_NAME="debug-probe-hub"
-CLOUD_IMAGE="/var/lib/vz/template/iso/ubuntu-22.04-server-cloudimg-amd64.img"
+# Use 24.04 (recommended) or 22.04
+CLOUD_IMAGE="/var/lib/vz/template/iso/ubuntu-24.04-server-cloudimg-amd64.img"
+# CLOUD_IMAGE="/var/lib/vz/template/iso/ubuntu-22.04-server-cloudimg-amd64.img"
 
 # Create VM
 qm create $VM_ID --name $VM_NAME --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0
