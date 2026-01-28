@@ -1,0 +1,20 @@
+# Generated files
+99-debugger-station.rules
+*.pyc
+__pycache__/
+
+# Temporary files
+*.log
+/tmp/
+
+# Environment
+.env
+venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

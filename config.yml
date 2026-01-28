@@ -1,0 +1,118 @@
+# Debugger Station Configuration
+
+# Server settings
+server:
+  port: 8080
+  upload_dir: /tmp/flash_staging
+
+# Container definitions
+containers:
+  standard:
+    name: debug-box-std
+    image_name: debugger-station-std
+    build_context: ./docker/standard
+    description: "Standard ARM tools (OpenOCD, J-Link)"
+
+  esp32:
+    name: debug-box-esp
+    image_name: debugger-station-esp
+    build_context: ./docker/esp32
+    description: "ESP32 tools (OpenOCD-ESP32)"
+
+  wch:
+    name: debug-box-wch
+    image_name: debugger-station-wch
+    build_context: ./docker/wch
+    description: "WCH RISC-V tools (minichlink)"
+
+# Debug probe definitions
+probes:
+  - id: 1
+    name: "Segger J-Link"
+    serial: "000051025665"
+    vendor_id: "1366"
+    product_id: "0105"
+    interface: jlink
+
+  - id: 2
+    name: "WCH-Link (ARM #1)"
+    serial: "C2428F064718"
+    vendor_id: "1a86"
+    product_id: "8010"
+    interface: cmsis-dap
+
+  - id: 3
+    name: "WCH-Link (ARM #2)"
+    serial: "03AF8F068882"
+    vendor_id: "1a86"
+    product_id: "8010"
+    interface: cmsis-dap
+
+  - id: 4
+    name: "WCH-Link (RISC-V)"
+    serial: "50CE8F06D5AF"
+    vendor_id: "1a86"
+    product_id: "8012"
+    interface: wch-link
+
+# Target device definitions
+targets:
+  nrf52840:
+    container: standard
+    description: "Nordic nRF52840"
+    compatible_probes: [1, 2, 3]
+    commands:
+      jlink:
+        debug: "JLinkGDBServer -device nRF52840_xxAA -if SWD -speed 4000 -port {gdb_port} -select USB={serial}"
+        flash: |
+          cat > /tmp/flash_nrf.jlink <<EOF
+          Select USB={serial}
+          device nRF52840_xxAA
+          if SWD
+          speed 4000
+          loadfile {firmware_path}
+          r
+          q
+          EOF
+          JLinkExe -CommandFile /tmp/flash_nrf.jlink
+      cmsis-dap:
+        debug: "openocd -f interface/cmsis-dap.cfg -f target/nrf52.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'tcl_port disabled' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f interface/cmsis-dap.cfg -f target/nrf52.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
+
+  esp32s3:
+    container: esp32
+    description: "Espressif ESP32-S3"
+    compatible_probes: [1, 2, 3]
+    commands:
+      jlink:
+        debug: "openocd -f interface/jlink.cfg -f board/esp32s3-builtin.cfg -c 'jlink serial {serial}' -c 'gdb_port {gdb_port}' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f interface/jlink.cfg -f board/esp32s3-builtin.cfg -c 'jlink serial {serial}' -c 'program_esp {firmware_path} verify reset exit'"
+      cmsis-dap:
+        debug: "openocd -f interface/cmsis-dap.cfg -f board/esp32s3-builtin.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f interface/cmsis-dap.cfg -f board/esp32s3-builtin.cfg -c 'adapter serial {serial}' -c 'program_esp {firmware_path} verify reset exit'"
+
+  stm32g3:
+    container: standard
+    description: "STM32G3 series"
+    compatible_probes: [1, 2, 3]
+    commands:
+      jlink:
+        debug: "openocd -f interface/jlink.cfg -f target/stm32g0x.cfg -c 'jlink serial {serial}' -c 'gdb_port {gdb_port}' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f interface/jlink.cfg -f target/stm32g0x.cfg -c 'jlink serial {serial}' -c 'program {firmware_path} verify reset exit'"
+      cmsis-dap:
+        debug: "openocd -f interface/cmsis-dap.cfg -f target/stm32g0x.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f interface/cmsis-dap.cfg -f target/stm32g0x.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
+
+  ch32v:
+    container: wch
+    description: "WCH CH32V series (RISC-V)"
+    compatible_probes: [4]
+    commands:
+      wch-link:
+        debug: "minichlink -G"
+        flash: "minichlink -w {firmware_path} flash -b"
+
+# Port allocation
+ports:
+  gdb_base: 3330
+  telnet_base: 4440
