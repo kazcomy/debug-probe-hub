@@ -12,7 +12,7 @@ def load_config(config_path):
 
 def generate_udev_rules(config):
     rules = []
-    rules.append("# Auto-generated udev rules for Debugger Station")
+    rules.append("# Auto-generated udev rules for Debug Probe Hub")
     rules.append("# Generated from config.yml\n")
 
     for probe in config['probes']:
@@ -59,7 +59,7 @@ def main():
     rules = generate_udev_rules(config)
 
     # Write to stdout or file
-    output_path = Path(__file__).parent / '99-debugger-station.rules'
+    output_path = Path(__file__).parent / '99-debug-probe-hub.rules'
     with open(output_path, 'w') as f:
         f.write(rules)
 

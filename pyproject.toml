@@ -1,0 +1,75 @@
+[project]
+name = "debug-probe-hub"
+version = "0.1.0"
+description = "A unified debugging and firmware flashing hub for multiple microcontroller targets and debug probes"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Debug Probe Hub Contributors"}
+]
+keywords = ["embedded", "debug", "probe", "firmware", "flash", "openocd", "jlink", "gdb"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Embedded Systems",
+    "Topic :: Software Development :: Debuggers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "black>=23.0",
+    "flake8>=6.0",
+    "mypy>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/debug-probe-hub"
+Repository = "https://github.com/yourusername/debug-probe-hub"
+Issues = "https://github.com/yourusername/debug-probe-hub/issues"
+
+[project.scripts]
+debug-probe-hub = "server:main"
+probe-finder = "probe_finder:main"
+probe-status = "probe_status:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []
+py-modules = [
+    "server",
+    "config_loader",
+    "debug_dispatcher",
+    "probe_status",
+    "probe_finder",
+    "generate_udev_rules",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

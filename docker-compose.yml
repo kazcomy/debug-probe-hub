@@ -6,7 +6,7 @@ services:
     build:
       context: ./docker/standard
       dockerfile: Dockerfile
-    image: debugger-station-std:latest
+    image: debug-probe-hub-std:latest
     container_name: debug-box-std
     privileged: true
     volumes:
@@ -22,7 +22,7 @@ services:
     build:
       context: ./docker/esp32
       dockerfile: Dockerfile
-    image: debugger-station-esp:latest
+    image: debug-probe-hub-esp:latest
     container_name: debug-box-esp
     privileged: true
     volumes:
@@ -38,7 +38,7 @@ services:
     build:
       context: ./docker/wch
       dockerfile: Dockerfile
-    image: debugger-station-wch:latest
+    image: debug-probe-hub-wch:latest
     container_name: debug-box-wch
     privileged: true
     volumes:

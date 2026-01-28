@@ -1,5 +1,5 @@
 #!/bin/bash
-# Debugger Station Setup Script
+# Debug Probe Hub Setup Script
 
 set -e
 
@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 echo "===================================="
-echo "Debugger Station Setup"
+echo "Debug Probe Hub Setup"
 echo "===================================="
 
 # Check if config.yml exists
@@ -34,8 +34,8 @@ python3 generate_udev_rules.py
 # Install udev rules
 echo ""
 echo "Installing udev rules..."
-if [ -f "99-debugger-station.rules" ]; then
-    sudo cp 99-debugger-station.rules /etc/udev/rules.d/
+if [ -f "99-debug-probe-hub.rules" ]; then
+    sudo cp 99-debug-probe-hub.rules /etc/udev/rules.d/
     sudo udevadm control --reload-rules
     sudo udevadm trigger
     echo "udev rules installed successfully"

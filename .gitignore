@@ -1,7 +1,9 @@
 # Generated files
-99-debugger-station.rules
+99-debug-probe-hub.rules
 *.pyc
 __pycache__/
+dist/
+build/
 
 # Temporary files
 *.log

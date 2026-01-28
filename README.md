@@ -1,10 +1,10 @@
-# Debugger Station
+# Debug Probe Hub
 
-A unified debugging and firmware flashing station for multiple microcontroller targets and debug probes.
+A unified debugging and firmware flashing hub for multiple microcontroller targets and debug probes.
 
 ## Overview
 
-Debugger Station provides a centralized HTTP API to manage firmware flashing and debugging sessions across multiple debug probes and target devices. All configuration is centralized in `config.yml`, making it easy to add new probes or targets.
+Debug Probe Hub provides a centralized HTTP API to manage firmware flashing and debugging sessions across multiple debug probes and target devices. All configuration is centralized in `config.yml`, making it easy to add new probes or targets.
 
 ## Features
 
@@ -35,14 +35,17 @@ Debugger Station provides a centralized HTTP API to manage firmware flashing and
 ## File Structure
 
 ```
-debugger-station/
+debug-probe-hub/
 ├── config.yml                  # Main configuration file
 ├── config_loader.py            # Configuration parser library
 ├── server.py                   # HTTP API server
 ├── debug_dispatcher.py         # Command execution logic
 ├── probe_status.py             # Probe status checker
+├── probe_finder.py             # Probe search utility
 ├── generate_udev_rules.py      # udev rules generator
 ├── setup.sh                    # Setup script
+├── pyproject.toml              # Python project metadata
+├── LICENSE                     # MIT License
 ├── docker-compose.yml          # Container orchestration
 └── docker/
     ├── standard/Dockerfile     # Standard ARM tools
@@ -412,21 +415,46 @@ The modular design makes it easy to extend:
 3. **debug_dispatcher.py**: Add new execution modes
 4. **config.yml**: Add new targets, probes, or containers
 
+## Installation
+
+### Using pip (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/debug-probe-hub.git
+cd debug-probe-hub
+
+# Install with dependencies
+pip install -e .
+
+# Or install from PyPI (when published)
+pip install debug-probe-hub
+```
+
+### Manual Installation
+
+Follow the setup instructions in the "Setup" section above.
+
 ## License
 
-This project is provided as-is for educational and development purposes.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-- OpenOCD project
-- Espressif ESP-IDF
-- Segger J-Link
-- WCH minichlink
+- [OpenOCD](https://openocd.org/) - Open On-Chip Debugger
+- [Espressif ESP-IDF](https://github.com/espressif/esp-idf) - ESP32 development framework
+- [Segger J-Link](https://www.segger.com/products/debug-probes/j-link/) - Professional debug probes
+- [WCH minichlink](https://github.com/cnlohr/ch32v003fun) - WCH RISC-V debug tools
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Support
 
 For issues or questions, please check:
 1. This README
-2. Generated udev rules: `99-debugger-station.rules`
+2. Generated udev rules: `99-debug-probe-hub.rules`
 3. Container logs: `docker-compose logs`
 4. Server logs: Check stderr output from `server.py`
+5. [GitHub Issues](https://github.com/yourusername/debug-probe-hub/issues)
