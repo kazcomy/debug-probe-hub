@@ -35,8 +35,9 @@ wget https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-
 qm create 100 --name debug-probe-hub --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0
 qm importdisk 100 ubuntu-24.04-server-cloudimg-amd64.img local-lvm
 qm set 100 --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-100-disk-0 --boot c --bootdisk scsi0
+qm resize $VM_ID scsi0 100G
 qm set 100 --ide2 local-lvm:cloudinit
-qm set 100 --cicustom "user=local:snippets/debug-probe-hub-user.yml,network=local:snippets/debug-probe-hub-network.yml"
+qm set 100 --cicustom "user=local:snippets/cloud-init-user-data.yml,network=local:snippets/cloud-init-network.yml"
 
 # 4. Add USB devices (check with lsusb)
 qm set 100 --usb0 host=1366:0105  # Your J-Link VID:PID
@@ -59,7 +60,7 @@ See detailed steps below for full explanation.
    ```
 
 2. Edit the files and replace all `TODO` placeholders:
-   - `cloud-init-user-data.yml`: Username, SSH public key, GitHub username, timezone
+   - `cloud-init-user-data.yml`: Username, password, GitHub username, timezone
    - `cloud-init-network.yml`: IP address, gateway, DNS servers, interface name
 
    Note: These files are gitignored and won't be committed.
@@ -75,12 +76,12 @@ cd /var/lib/vz/snippets
 
 # Option 1: Upload from your local machine
 # (From your local machine)
-# scp deploy/cloud-init-user-data.yml root@proxmox:/var/lib/vz/snippets/debug-probe-hub-user.yml
-# scp deploy/cloud-init-network.yml root@proxmox:/var/lib/vz/snippets/debug-probe-hub-network.yml
+# scp deploy/cloud-init-user-data.yml root@proxmox:/var/lib/vz/snippets/
+# scp deploy/cloud-init-network.yml root@proxmox:/var/lib/vz/snippets/
 
 # Option 2: Create directly on Proxmox
-nano /var/lib/vz/snippets/debug-probe-hub-user.yml
-nano /var/lib/vz/snippets/debug-probe-hub-network.yml
+nano /var/lib/vz/snippets/cloud-init-user-data.yml
+nano /var/lib/vz/snippets/cloud-init-network.yml
 
 # === Step 2: Download Ubuntu cloud image ===
 cd /var/lib/vz/template/iso
@@ -108,7 +109,7 @@ qm set $VM_ID --boot c --bootdisk scsi0
 qm set $VM_ID --ide2 local-lvm:cloudinit
 
 # Configure Cloud-init with custom snippets
-qm set $VM_ID --cicustom "user=local:snippets/debug-probe-hub-user.yml,network=local:snippets/debug-probe-hub-network.yml"
+qm set $VM_ID --cicustom "user=local:snippets/cloud-init-user-data.yml,network=local:snippets/cloud-init-network.yml"
 
 # === Step 4: Add USB devices ===
 # Find your USB devices first

@@ -7,7 +7,7 @@ This is a condensed guide for experienced users. For detailed explanations, see 
 - Proxmox VE server
 - SSH access to Proxmox host
 - Your edited `cloud-init-user-data.yml` and `cloud-init-network.yml` files
-  - **CRITICAL**: You MUST configure authentication (SSH key or password) in `cloud-init-user-data.yml` or you won't be able to login!
+  - **CRITICAL**: You MUST set a password in `cloud-init-user-data.yml` or you won't be able to login!
 
 ## One-Command Setup
 
@@ -33,7 +33,7 @@ qm set $VM_ID --boot c --bootdisk scsi0
 qm set $VM_ID --ide2 local-lvm:cloudinit
 
 # Configure cloud-init (assumes snippets are already uploaded)
-qm set $VM_ID --cicustom "user=local:snippets/debug-probe-hub-user.yml,network=local:snippets/debug-probe-hub-network.yml"
+qm set $VM_ID --cicustom "user=local:snippets/cloud-init-user-data.yml,network=local:snippets/cloud-init-network.yml"
 
 echo "VM created. Add USB devices with:"
 echo "  lsusb  # to find device IDs"
@@ -55,12 +55,12 @@ cp cloud-init-user-data.template.yml cloud-init-user-data.yml
 cp cloud-init-network.template.yml cloud-init-network.yml
 
 # Edit and replace TODO placeholders
-nano cloud-init-user-data.yml  # Fix: YOUR_USERNAME_HERE, YOUR_SSH_PUBLIC_KEY_HERE, YOUR_GITHUB_USERNAME
+nano cloud-init-user-data.yml  # Fix: YOUR_USERNAME_HERE, YOUR_PASSWORD_HERE, YOUR_GITHUB_USERNAME
 nano cloud-init-network.yml    # Fix: IP, gateway, DNS
 
 # Upload to Proxmox
-scp cloud-init-user-data.yml root@proxmox:/var/lib/vz/snippets/debug-probe-hub-user.yml
-scp cloud-init-network.yml root@proxmox:/var/lib/vz/snippets/debug-probe-hub-network.yml
+scp cloud-init-user-data.yml root@proxmox:/var/lib/vz/snippets/
+scp cloud-init-network.yml root@proxmox:/var/lib/vz/snippets/
 ```
 
 ### 2. Create VM on Proxmox
@@ -79,7 +79,7 @@ qm create $VM_ID --name debug-probe-hub --memory 2048 --cores 2 --net0 virtio,br
 qm importdisk $VM_ID ubuntu-24.04-server-cloudimg-amd64.img local-lvm
 qm set $VM_ID --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-$VM_ID-disk-0 --boot c --bootdisk scsi0
 qm set $VM_ID --ide2 local-lvm:cloudinit
-qm set $VM_ID --cicustom "user=local:snippets/debug-probe-hub-user.yml,network=local:snippets/debug-probe-hub-network.yml"
+qm set $VM_ID --cicustom "user=local:snippets/cloud-init-user-data.yml,network=local:snippets/cloud-init-network.yml"
 ```
 
 ### 3. Add USB Devices

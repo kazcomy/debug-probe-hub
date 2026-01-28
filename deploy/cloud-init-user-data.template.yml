@@ -15,12 +15,12 @@ users:
     groups: [sudo, docker]
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
     shell: /bin/bash
-    # TODO: Add your SSH public keys here (can add multiple)
-    # Generate key: ssh-keygen -t ed25519 -C "your_email@example.com"
-    # Get public key: cat ~/.ssh/id_ed25519.pub
+    passwd: "YOUR_PASSWORD_HERE"  # TODO: Change to your password (will be hashed by cloud-init)
+    lock_passwd: false
+    chpasswd: { expire: False }
+    ssh_pwauth: True
     ssh_authorized_keys:
-      - YOUR_SSH_PUBLIC_KEY_HERE  # TODO: Paste your public key
-      # - ssh-ed25519 AAAAC3Nza... second_key@example.com  # Optional: add more keys
+      - YOUR_SSH_PUBLIC_KEY_HERE  # TODO: Add your SSH public key (optional)
 
 # Timezone TODO: Change if needed
 timezone: Asia/Tokyo
@@ -48,26 +48,35 @@ runcmd:
   # Install Docker
   - curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
   - sh /tmp/get-docker.sh
-  - usermod -aG docker YOUR_USERNAME_HERE  # TODO: This will be replaced by sed below
+  - usermod -aG docker YOUR_USERNAME_HERE  # TODO: This will be replaced automatically
   - systemctl enable docker
   - systemctl start docker
 
-  # Install Python dependencies
-  - pip3 install --upgrade pip
-  - pip3 install pyyaml
+  # Install Docker Compose
+  - curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+  - chmod +x /usr/local/bin/docker-compose
+  - ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+
+  # Install Python dependencies (use --break-system-packages for Ubuntu 24.04+)
+  - pip3 install --break-system-packages --upgrade pip
+  - pip3 install --break-system-packages pyyaml
 
   # Clone debug-probe-hub repository
   - git clone https://github.com/YOUR_GITHUB_USERNAME/debug-probe-hub.git /opt/debug-probe-hub  # TODO: Change GitHub username
   - chown -R YOUR_USERNAME_HERE:YOUR_USERNAME_HERE /opt/debug-probe-hub
 
-  # Run setup script
-  - cd /opt/debug-probe-hub && sudo -u YOUR_USERNAME_HERE bash setup.sh || true
-
-  # Install systemd service (replace user placeholder)
+  # Install systemd services (replace user placeholder)
+  - sed 's/User=debug/User=YOUR_USERNAME_HERE/g; s/Group=debug/Group=YOUR_USERNAME_HERE/g' /opt/debug-probe-hub/deploy/systemd/debug-probe-hub-pre-setup.service > /etc/systemd/system/debug-probe-hub-pre-setup.service
+  - sed 's/User=debug/User=YOUR_USERNAME_HERE/g; s/Group=debug/Group=YOUR_USERNAME_HERE/g' /opt/debug-probe-hub/deploy/systemd/debug-probe-hub-setup.service > /etc/systemd/system/debug-probe-hub-setup.service
   - sed 's/User=debug/User=YOUR_USERNAME_HERE/g; s/Group=debug/Group=YOUR_USERNAME_HERE/g' /opt/debug-probe-hub/deploy/systemd/debug-probe-hub.service > /etc/systemd/system/debug-probe-hub.service
   - systemctl daemon-reload
+
+  # Run pre-setup only (udev rules, Python deps, etc. - STOPS before docker build)
+  - systemctl start debug-probe-hub-pre-setup.service
+
+  # Enable (not start) the setup and main services - user will run them manually
+  - systemctl enable debug-probe-hub-setup.service
   - systemctl enable debug-probe-hub.service
-  - systemctl start debug-probe-hub.service
 
 # Create working directories
 write_files:
@@ -77,13 +86,26 @@ write_files:
 
 # Final message
 final_message: |
-  Debug Probe Hub setup complete!
+  Debug Probe Hub pre-setup complete!
+
+  SSH in as 'YOUR_USERNAME_HERE' user to continue setup:
+    ssh YOUR_USERNAME_HERE@<your-ip>
+
+  Next steps:
+    1. Check pre-setup status:
+       systemctl status debug-probe-hub-pre-setup
+       journalctl -u debug-probe-hub-pre-setup
+
+    2. Build Docker images (this may take 10-20 minutes):
+       sudo systemctl start debug-probe-hub-setup
+       journalctl -u debug-probe-hub-setup -f
+
+    3. Start the server:
+       sudo systemctl start debug-probe-hub
+       systemctl status debug-probe-hub
+
+    4. Verify:
+       docker ps
+       curl http://localhost:8080/status
 
   Access the server at: http://<your-ip>:8080
-
-  SSH in as 'YOUR_USERNAME_HERE' user to manage the system.
-
-  Check status:
-    systemctl status debug-probe-hub
-    docker ps
-    curl http://localhost:8080/status

@@ -20,10 +20,10 @@ fi
 echo ""
 echo "Installing Python dependencies..."
 if command -v pip3 &> /dev/null; then
-    pip3 install pyyaml
+    pip3 install --break-system-packages pyyaml
 else
     echo "WARNING: pip3 not found. Please install PyYAML manually:"
-    echo "  pip3 install pyyaml"
+    echo "  pip3 install --break-system-packages pyyaml"
 fi
 
 # Generate udev rules

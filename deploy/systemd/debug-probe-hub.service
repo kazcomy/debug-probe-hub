@@ -1,7 +1,7 @@
 [Unit]
 Description=Debug Probe Hub Server
 Documentation=https://github.com/yourusername/debug-probe-hub
-After=network-online.target docker.service
+After=network-online.target docker.service debug-probe-hub-setup.service
 Wants=network-online.target
 Requires=docker.service
 
@@ -21,7 +21,7 @@ ExecStart=/usr/bin/python3 /opt/debug-probe-hub/server.py
 # Stop containers on service stop
 ExecStop=/usr/bin/docker-compose down
 
-# Restart policy
+# Restart policy - only restart on failure, not during setup issues
 Restart=on-failure
 RestartSec=10s
 

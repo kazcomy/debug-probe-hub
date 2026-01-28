@@ -1,0 +1,27 @@
+[Unit]
+Description=Debug Probe Hub Docker Image Build
+Documentation=https://github.com/yourusername/debug-probe-hub
+After=network-online.target docker.service debug-probe-hub-pre-setup.service
+Wants=network-online.target
+Requires=docker.service debug-probe-hub-pre-setup.service
+
+[Service]
+Type=oneshot
+User=debug
+Group=debug
+WorkingDirectory=/opt/debug-probe-hub
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Build Docker images only
+ExecStart=/usr/bin/docker-compose build
+
+# No restart - this is a one-time setup
+RemainAfterExit=yes
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=debug-probe-hub-setup
+
+[Install]
+WantedBy=multi-user.target
