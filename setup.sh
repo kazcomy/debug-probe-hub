@@ -57,6 +57,7 @@ chmod +x generate_udev_rules.py
 chmod +x server.py
 chmod +x debug_dispatcher.py
 chmod +x probe_status.py
+chmod +x probe_finder.py
 
 # Build Docker images
 echo ""
@@ -73,5 +74,6 @@ echo "  1. Review and customize config.yml for your setup"
 echo "  2. Start containers: docker-compose up -d"
 echo "  3. Start server: python3 server.py"
 echo "  4. Check probe status: curl http://localhost:8080/status"
+echo "  5. Search for probes: python3 probe_finder.py --interface jlink"
 echo ""
 echo "For more information, see README.md"

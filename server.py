@@ -13,6 +13,7 @@ import email.message
 from urllib.parse import urlparse
 from pathlib import Path
 from config_loader import get_config
+from probe_finder import search_probes
 
 config = get_config()
 
@@ -32,6 +33,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._handle_status()
         elif parsed_path == '/probes':
             self._handle_probes_list()
+        elif parsed_path.startswith('/probes/search'):
+            self._handle_probe_search()
         elif parsed_path == '/targets':
             self._handle_targets_list()
         else:
@@ -78,6 +81,39 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, {"targets": targets})
         except Exception as e:
             print(f"[ERROR] Failed to list targets: {e}", file=sys.stderr)
+            self._send_json(500, {"error": str(e)})
+
+    def _handle_probe_search(self):
+        """Search for probes by various criteria"""
+        try:
+            from urllib.parse import parse_qs
+
+            # Parse query parameters
+            parsed = urlparse(self.path)
+            query_params = parse_qs(parsed.query)
+
+            # Extract search criteria (take first value from lists)
+            interface = query_params.get('interface', [None])[0]
+            vendor_id = query_params.get('vid', query_params.get('vendor_id', [None]))[0]
+            product_id = query_params.get('pid', query_params.get('product_id', [None]))[0]
+            serial = query_params.get('serial', [None])[0]
+            name = query_params.get('name', [None])[0]
+
+            # Perform search
+            results = search_probes(
+                interface=interface,
+                vendor_id=vendor_id,
+                product_id=product_id,
+                serial=serial,
+                name=name
+            )
+
+            self._send_json(200, results)
+
+        except Exception as e:
+            print(f"[ERROR] Probe search failed: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
             self._send_json(500, {"error": str(e)})
 
     def _handle_dispatch(self):

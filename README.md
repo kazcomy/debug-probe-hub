@@ -153,6 +153,79 @@ List all configured probes
 curl http://localhost:8080/probes
 ```
 
+#### GET /probes/search
+Search for probes by interface, VID/PID, serial, or name
+
+This endpoint allows clients to find probes without knowing internal probe IDs. Clients only need to know physical identifiers like interface type, VID/PID, or serial numbers.
+
+**Query Parameters:**
+- `interface` - Interface type (e.g., "jlink", "cmsis-dap", "wch-link")
+- `vid` or `vendor_id` - USB Vendor ID (e.g., "1366" or "0x1366")
+- `pid` or `product_id` - USB Product ID (e.g., "0105")
+- `serial` - Serial number (for disambiguation when multiple probes of same type)
+- `name` - Partial name match (e.g., "J-Link")
+
+**Examples:**
+
+Find all J-Link probes:
+```bash
+curl "http://localhost:8080/probes/search?interface=jlink"
+```
+
+Find probe by VID/PID:
+```bash
+curl "http://localhost:8080/probes/search?vid=1366&pid=0105"
+```
+
+Find specific probe by serial (when you have multiple of same type):
+```bash
+curl "http://localhost:8080/probes/search?interface=jlink&serial=000051025665"
+```
+
+Find by name:
+```bash
+curl "http://localhost:8080/probes/search?name=WCH-Link"
+```
+
+**Response:**
+```json
+{
+  "query": {
+    "interface": "jlink",
+    "vendor_id": null,
+    "product_id": null,
+    "serial": null,
+    "name": null
+  },
+  "matches": [
+    {
+      "id": 1,
+      "name": "Segger J-Link",
+      "serial": "000051025665",
+      "vendor_id": "1366",
+      "product_id": "0105",
+      "interface": "jlink"
+    }
+  ],
+  "count": 1
+}
+```
+
+**Using probe search in dispatch:**
+
+Instead of hardcoding probe IDs, clients can search first:
+```bash
+# 1. Find the probe
+PROBE_ID=$(curl -s "http://localhost:8080/probes/search?interface=jlink" | jq -r '.matches[0].id')
+
+# 2. Use it for flashing
+curl -X POST http://localhost:8080/dispatch \
+  -F "target=nrf52840" \
+  -F "probe=$PROBE_ID" \
+  -F "mode=flash" \
+  -F "file=@firmware.hex"
+```
+
 #### GET /targets
 List all supported targets
 
@@ -183,6 +256,50 @@ curl -X POST http://localhost:8080/dispatch \
 Then connect GDB:
 ```bash
 arm-none-eabi-gdb -ex "target remote localhost:3331"
+```
+
+## Common Usage Patterns
+
+### Example 1: Flash firmware without knowing probe ID
+
+```bash
+# Find any available J-Link probe
+PROBE_ID=$(curl -s "http://localhost:8080/probes/search?interface=jlink" | jq -r '.matches[0].id')
+
+# Flash firmware
+curl -X POST http://localhost:8080/dispatch \
+  -F "target=nrf52840" \
+  -F "probe=$PROBE_ID" \
+  -F "mode=flash" \
+  -F "file=@firmware.hex"
+```
+
+### Example 2: Use specific probe when multiple are connected
+
+```bash
+# You have 2 CMSIS-DAP probes, use the one with specific serial
+PROBE_ID=$(curl -s "http://localhost:8080/probes/search?interface=cmsis-dap&serial=C2428F064718" | jq -r '.matches[0].id')
+
+curl -X POST http://localhost:8080/dispatch \
+  -F "target=stm32g3" \
+  -F "probe=$PROBE_ID" \
+  -F "mode=debug"
+```
+
+### Example 3: Command-line probe search tool
+
+```bash
+# Search by interface
+python3 probe_finder.py --interface jlink
+
+# Search by VID/PID
+python3 probe_finder.py --vendor-id 1366 --product-id 0105
+
+# Search by name
+python3 probe_finder.py --name "WCH-Link"
+
+# Combined search with JSON output
+python3 probe_finder.py --interface cmsis-dap --serial C2428F064718 --json
 ```
 
 ## Configuration
