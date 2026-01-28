@@ -20,85 +20,76 @@ The deployment uses Cloud-init to automatically configure a fresh Ubuntu VM with
    - 24.04 LTS is recommended for longer support (until 2034) and newer packages
 3. **USB Debug Probes** physically connected to the Proxmox host
 
-## Quick Start
+## Quick Start (TL;DR)
+
+For the impatient, here's the minimal command sequence:
+
+```bash
+# On Proxmox host
+# 1. Upload cloud-init files to /var/lib/vz/snippets/
+# 2. Download Ubuntu image
+cd /var/lib/vz/template/iso
+wget https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img
+
+# 3. Create VM with cloud-init
+qm create 100 --name debug-probe-hub --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0
+qm importdisk 100 ubuntu-24.04-server-cloudimg-amd64.img local-lvm
+qm set 100 --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-100-disk-0 --boot c --bootdisk scsi0
+qm set 100 --ide2 local-lvm:cloudinit
+qm set 100 --cicustom "user=local:snippets/debug-probe-hub-user.yml,network=local:snippets/debug-probe-hub-network.yml"
+
+# 4. Add USB devices (check with lsusb)
+qm set 100 --usb0 host=1366:0105  # Your J-Link VID:PID
+
+# 5. Start and wait 3-5 minutes
+qm start 100
+```
+
+See detailed steps below for full explanation.
+
+## Detailed Setup
 
 ### Step 1: Prepare Cloud-init Configuration
 
 1. Edit [`cloud-init-user-data.yml`](cloud-init-user-data.yml):
-   - Add your SSH public key
+   - **IMPORTANT**: Change username from `kazcomy` to your desired username
+     - Search and replace ALL occurrences (appears in users, usermod, chown, sudo, sed commands)
+   - Add your SSH public key (if using SSH key authentication)
    - Adjust timezone if needed
-   - Update GitHub repository URL
+   - Update GitHub repository URL to your fork
 
 2. Edit [`cloud-init-network.yml`](cloud-init-network.yml):
    - Change static IP: `192.168.1.234` (default)
    - Change gateway: `192.168.1.1` (default)
    - Adjust interface name if needed (check with `ip a` on Ubuntu)
 
-### Step 2: Create VM in Proxmox
-
-#### Option A: Using Proxmox Web UI
-
-1. **Upload Cloud Image**:
-   ```bash
-   # On Proxmox host
-   cd /var/lib/vz/template/iso
-
-   # Ubuntu 24.04 LTS (recommended)
-   wget https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img
-
-   # Or Ubuntu 22.04 LTS
-   # wget https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img
-   ```
-
-2. **Create VM**:
-   - Go to Proxmox web UI → Create VM
-   - VM ID: 100 (or your choice)
-   - Name: `debug-probe-hub`
-   - OS: Do not use any media
-   - System: Default (q35, OVMF if using UEFI)
-   - Disks: Delete the default disk (we'll import the cloud image)
-   - CPU: 2 cores
-   - Memory: 2048 MB
-   - Network: vmbr0, Model: VirtIO
-
-3. **Import Cloud Image**:
-   ```bash
-   # On Proxmox host (use 24.04 or 22.04 depending on what you downloaded)
-   qm importdisk 100 /var/lib/vz/template/iso/ubuntu-24.04-server-cloudimg-amd64.img local-lvm
-   # Or for 22.04:
-   # qm importdisk 100 /var/lib/vz/template/iso/ubuntu-22.04-server-cloudimg-amd64.img local-lvm
-   ```
-
-4. **Attach Disk**:
-   - In VM → Hardware → Select unused disk → Edit → Add
-   - Set as boot disk
-
-5. **Add Cloud-init Drive**:
-   - Hardware → Add → CloudInit Drive
-   - Storage: local-lvm
-
-6. **Configure Cloud-init**:
-   - Go to Cloud-Init tab
-   - Upload or paste contents of:
-     - User: Contents of `cloud-init-user-data.yml`
-     - Network: Contents of `cloud-init-network.yml`
-
-7. **Configure USB Passthrough**:
-   - Hardware → Add → USB Device
-   - Select your debug probes (J-Link, CMSIS-DAP, etc.)
-   - Use "Use USB Vendor/Device ID" for persistent mapping
-
-#### Option B: Using Command Line
+### Step 2: Create VM in Proxmox (Command Line)
 
 ```bash
 # On Proxmox host
 
+# === Step 1: Prepare Cloud-init files ===
+# Copy your edited cloud-init files to snippets directory
+cd /var/lib/vz/snippets
+
+# Option 1: Upload from your local machine
+# (From your local machine)
+# scp deploy/cloud-init-user-data.yml root@proxmox:/var/lib/vz/snippets/debug-probe-hub-user.yml
+# scp deploy/cloud-init-network.yml root@proxmox:/var/lib/vz/snippets/debug-probe-hub-network.yml
+
+# Option 2: Create directly on Proxmox
+nano /var/lib/vz/snippets/debug-probe-hub-user.yml
+nano /var/lib/vz/snippets/debug-probe-hub-network.yml
+
+# === Step 2: Download Ubuntu cloud image ===
+cd /var/lib/vz/template/iso
+wget https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img
+
+# === Step 3: Create and configure VM ===
 # Variables
 VM_ID=100
 VM_NAME="debug-probe-hub"
-# Use 24.04 (recommended) or 22.04
 CLOUD_IMAGE="/var/lib/vz/template/iso/ubuntu-24.04-server-cloudimg-amd64.img"
-# CLOUD_IMAGE="/var/lib/vz/template/iso/ubuntu-22.04-server-cloudimg-amd64.img"
 
 # Create VM
 qm create $VM_ID --name $VM_NAME --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0
@@ -115,18 +106,32 @@ qm set $VM_ID --boot c --bootdisk scsi0
 # Add Cloud-init drive
 qm set $VM_ID --ide2 local-lvm:cloudinit
 
-# Set Cloud-init config (using snippets)
-# First, copy your cloud-init files to Proxmox:
-# /var/lib/vz/snippets/debug-probe-hub-user.yml
-# /var/lib/vz/snippets/debug-probe-hub-network.yml
-
+# Configure Cloud-init with custom snippets
 qm set $VM_ID --cicustom "user=local:snippets/debug-probe-hub-user.yml,network=local:snippets/debug-probe-hub-network.yml"
 
-# Add USB device (example for J-Link with vendor:product 1366:0105)
+# === Step 4: Add USB devices ===
+# Find your USB devices first
+lsusb
+
+# Add USB device by vendor:product ID (recommended - survives reconnects)
+# Example for J-Link (1366:0105)
 qm set $VM_ID --usb0 host=1366:0105
 
-# Start VM
+# Add more USB devices as needed
+# qm set $VM_ID --usb1 host=1a86:8010  # WCH-Link #1
+# qm set $VM_ID --usb2 host=1a86:8010  # WCH-Link #2
+
+# === Step 5: Start VM ===
 qm start $VM_ID
+
+# === Step 6: Monitor cloud-init progress ===
+# Wait 3-5 minutes for cloud-init to complete
+# Check VM console or SSH in:
+# ssh kazcomy@192.168.1.234
+
+# Check cloud-init status
+# cloud-init status
+# tail -f /var/log/cloud-init-output.log
 ```
 
 ### Step 3: Verify Deployment
@@ -134,8 +139,8 @@ qm start $VM_ID
 Wait 3-5 minutes for cloud-init to complete, then:
 
 ```bash
-# SSH into the VM
-ssh debug@192.168.1.234
+# SSH into the VM (use your username, not 'debug')
+ssh kazcomy@192.168.1.234
 
 # Check service status
 systemctl status debug-probe-hub

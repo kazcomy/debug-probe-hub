@@ -29,7 +29,7 @@ packages:
   - curl
   - udev
   - usbutils
-  - jq
+  - jq                      # JSON processor for API queries
   - apt-transport-https
   - ca-certificates
   - gnupg
@@ -40,7 +40,7 @@ runcmd:
   # Install Docker
   - curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
   - sh /tmp/get-docker.sh
-  - usermod -aG docker debug
+  - usermod -aG docker kazcomy
   - systemctl enable docker
   - systemctl start docker
 
@@ -48,15 +48,15 @@ runcmd:
   - pip3 install --upgrade pip
   - pip3 install pyyaml
 
-  # Clone debug-probe-hub repository 
+  # Clone debug-probe-hub repository
   - git clone https://github.com/kazcomy/debug-probe-hub.git /opt/debug-probe-hub
-  - chown -R debug:debug /opt/debug-probe-hub
+  - chown -R kazcomy:kazcomy /opt/debug-probe-hub
 
   # Run setup script
-  - cd /opt/debug-probe-hub && sudo -u debug bash setup.sh || true
+  - cd /opt/debug-probe-hub && sudo -u kazcomy bash setup.sh || true
 
-  # Install systemd service
-  - cp /opt/debug-probe-hub/deploy/systemd/debug-probe-hub.service /etc/systemd/system/
+  # Install systemd service (replace user placeholder)
+  - sed 's/User=debug/User=kazcomy/g; s/Group=debug/Group=kazcomy/g' /opt/debug-probe-hub/deploy/systemd/debug-probe-hub.service > /etc/systemd/system/debug-probe-hub.service
   - systemctl daemon-reload
   - systemctl enable debug-probe-hub.service
   - systemctl start debug-probe-hub.service
