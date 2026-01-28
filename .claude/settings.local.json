@@ -9,7 +9,8 @@
       "Bash(systemctl status:*)",
       "Bash(systemctl is-enabled:*)",
       "Bash(curl:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(ls:*)"
     ]
   }
 }

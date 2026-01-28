@@ -9,19 +9,19 @@ server:
 containers:
   standard:
     name: debug-box-std
-    image_name: debugger-station-std
+    image_name: debug-probe-hub-std
     build_context: ./docker/standard
     description: "Standard ARM tools (OpenOCD, J-Link)"
 
   esp32:
     name: debug-box-esp
-    image_name: debugger-station-esp
+    image_name: debug-probe-hub-esp
     build_context: ./docker/esp32
     description: "ESP32 tools (OpenOCD-ESP32)"
 
   wch:
     name: debug-box-wch
-    image_name: debugger-station-wch
+    image_name: debug-probe-hub-wch
     build_context: ./docker/wch
     description: "WCH RISC-V tools (minichlink)"
 
