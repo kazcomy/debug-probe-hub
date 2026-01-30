@@ -36,7 +36,7 @@ check_dependencies() {
 
     local missing_deps=()
 
-    for cmd in git git-lfs tar sudo; do
+    for cmd in git git-lfs tar; do
         if ! command -v $cmd &> /dev/null; then
             missing_deps+=($cmd)
         fi
@@ -44,7 +44,7 @@ check_dependencies() {
 
     if [ ${#missing_deps[@]} -ne 0 ]; then
         log_error "Missing dependencies: ${missing_deps[*]}"
-        log_info "Install with: sudo apt install ${missing_deps[*]}"
+        log_info "Install with: apt install ${missing_deps[*]}"
         exit 1
     fi
 
@@ -92,7 +92,7 @@ extract_toolchain() {
     local archives=()
 
     log_info "Creating installation directory: $INSTALL_DIR"
-    sudo mkdir -p "$INSTALL_DIR"
+    mkdir -p "$INSTALL_DIR"
 
     while IFS= read -r -d '' file; do
         archives+=("$file")
@@ -112,7 +112,7 @@ extract_toolchain() {
     archive_path="${archives[0]}"
 
     log_info "Extracting toolchain archive: $archive_path"
-    sudo tar -xf "$archive_path" -C "$INSTALL_DIR"
+    tar -xf "$archive_path" -C "$INSTALL_DIR"
 
     log_info "Extraction complete"
 }
