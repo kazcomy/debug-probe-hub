@@ -39,7 +39,7 @@ probes:
     serial: "C2428F064718"
     vendor_id: "1a86"
     product_id: "8010"
-    interface: cmsis-dap
+    interface: wch-link
 
   - id: 3
     name: "WCH-Link (ARM #2)"
