@@ -176,7 +176,7 @@ flowchart TD
 2. **Container-Based Tool Isolation**
    - **debug-box-std**: OpenOCD, J-Link tools (ARM Cortex-M)
    - **debug-box-esp**: ESP-IDF toolchain, OpenOCD-ESP32
-   - **debug-box-wch**: minichlink (WCH CH32V RISC-V)
+   - **debug-box-wch**: WCH OpenOCD, wlink (WCH CH32V RISC-V)
    - Containers share host USB and network (privileged mode)
 
 3. **Interface-Based Probe Matching**
@@ -695,7 +695,7 @@ This example shows adding both a new **interface type** (hardware category) and 
 
 **Key Concept:**
 - **Interface** = Hardware interface (e.g., `usb-serial`, `cmsis-dap`, `wch-link`)
-- **Container/Tool** = Programming software (e.g., `arduino-cli`, `OpenOCD`, `minichlink`)
+- **Container/Tool** = Programming software (e.g., `arduino-cli`, `OpenOCD`, `wlink`)
 
 For Arduino boards:
 - Interface: `usb-serial` (built-in USB-UART on most Arduino boards)
@@ -832,7 +832,7 @@ curl -X POST http://localhost:8080/dispatch \
 | Component | What It Represents | Extensibility | How to Add |
 |-----------|-------------------|--------------|------------|
 | **Interface Type** | Hardware category<br>(e.g., `cmsis-dap`, `usb-serial`, `wch-link`) | ✅ Fully extensible | Add to `probes[].interface` in config.yml |
-| **Container/Tool** | Programming software<br>(e.g., OpenOCD, arduino-cli, minichlink) | ✅ Fully extensible | Add Dockerfile + docker-compose entry + config.yml |
+| **Container/Tool** | Programming software<br>(e.g., OpenOCD, arduino-cli, wlink) | ✅ Fully extensible | Add Dockerfile + docker-compose entry + config.yml |
 | **Targets** | MCU/Board definitions | ✅ Fully extensible | Add to `targets` section in config.yml |
 | **Commands** | Tool invocation commands | ✅ Fully extensible | Add to `targets[].commands[interface]` in config.yml |
 | **Cleanup Logic** | Process termination | ⚠️ Code change needed | Edit `debug_dispatcher.py` (only for GDB servers) |

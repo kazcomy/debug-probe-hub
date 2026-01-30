@@ -43,7 +43,8 @@ RUN if [ -z "$WCH_TOOLCHAIN_URL" ]; then \
     fi
 
 ENV WCH_TOOLCHAIN=/opt/wch-toolchain
-ENV PATH="${WCH_TOOLCHAIN}/bin:${PATH}"
+# Add all possible toolchain paths to PATH
+ENV PATH="${WCH_TOOLCHAIN}/OpenOCD/OpenOCD/bin:${WCH_TOOLCHAIN}/OpenOCD/bin:${WCH_TOOLCHAIN}/Toolchain/RISC-V Embedded GCC12/bin:${WCH_TOOLCHAIN}/RISC-V Embedded GCC12/bin:${WCH_TOOLCHAIN}/bin:${PATH}"
 
 # Copy WCH toolchain setup script
 COPY setup_wch_toolchain.sh /tmp/
@@ -52,10 +53,17 @@ RUN chmod +x /tmp/setup_wch_toolchain.sh
 # Install WCH OpenOCD toolchain from private repository
 RUN /tmp/setup_wch_toolchain.sh
 
-# Verify OpenOCD installation
-RUN if [ ! -f "${WCH_TOOLCHAIN}/bin/openocd" ] && [ ! -f "/usr/local/bin/openocd" ]; then \
+# Verify OpenOCD installation (check multiple possible paths)
+RUN if [ ! -f "${WCH_TOOLCHAIN}/OpenOCD/OpenOCD/bin/openocd" ] && \
+       [ ! -f "${WCH_TOOLCHAIN}/OpenOCD/bin/openocd" ] && \
+       [ ! -f "${WCH_TOOLCHAIN}/bin/openocd" ] && \
+       [ ! -f "/usr/local/bin/openocd" ]; then \
       echo "ERROR: OpenOCD not found after toolchain installation"; \
-      echo "Check your WCH_TOOLCHAIN_URL and repository contents"; \
+      echo "Checked paths:"; \
+      echo "  - ${WCH_TOOLCHAIN}/OpenOCD/OpenOCD/bin/openocd"; \
+      echo "  - ${WCH_TOOLCHAIN}/OpenOCD/bin/openocd"; \
+      echo "  - ${WCH_TOOLCHAIN}/bin/openocd"; \
+      echo "  - /usr/local/bin/openocd"; \
       exit 1; \
     fi
 
