@@ -213,7 +213,20 @@ debug-probe-hub/
 
 ## Quick Start
 
-**TL;DR** for experienced users:
+### Proxmox VM Deployment (Recommended for Production)
+
+For automated deployment on Proxmox with cloud-init, **see [deploy/README.md](deploy/README.md)** for the complete setup guide.
+
+This method provides:
+- Automated VM provisioning with Ubuntu cloud image
+- Static IP configuration
+- Docker and dependencies pre-installed
+- Systemd service auto-configuration
+- USB passthrough setup
+
+### Manual Installation (Development/Testing)
+
+For local development or manual setup:
 
 ```bash
 # 1. Clone repository
@@ -233,27 +246,7 @@ sudo systemctl enable --now debug-probe-hub.service
 curl http://localhost:8080/status
 ```
 
-For **Proxmox/VM deployment** with cloud-init automation, see [deploy/README.md](deploy/README.md).
-
 ## Setup
-
-### Deployment Options
-
-#### Option 1: Proxmox VM with Cloud-init (Recommended)
-
-For automated deployment on Proxmox with static IP configuration:
-
-**See [deploy/README.md](deploy/README.md) for complete Proxmox deployment guide**
-
-Quick summary:
-1. Prepare Ubuntu 24.04 LTS cloud image (or 22.04 LTS)
-2. Configure `deploy/cloud-init-user-data.yml` (add SSH key)
-3. Configure `deploy/cloud-init-network.yml` (set static IP: 192.168.1.234)
-4. Create VM in Proxmox with cloud-init
-5. Configure USB passthrough for debug probes
-6. Start VM - everything installs automatically!
-
-#### Option 2: Manual Installation
 
 ### Prerequisites
 

@@ -86,26 +86,34 @@ write_files:
 
 # Final message
 final_message: |
-  Debug Probe Hub pre-setup complete!
+  ========================================
+  Debug Probe Hub - Pre-Setup Complete!
+  ========================================
 
-  SSH in as 'YOUR_USERNAME_HERE' user to continue setup:
+  Phase 1 (Automated) is done. Docker and dependencies are installed.
+
+  Next: SSH in and complete Phase 2 (Manual Setup)
     ssh YOUR_USERNAME_HERE@<your-ip>
 
-  Next steps:
-    1. Check pre-setup status:
-       systemctl status debug-probe-hub-pre-setup
-       journalctl -u debug-probe-hub-pre-setup
+  REQUIRED STEPS:
 
-    2. Build Docker images (this may take 10-20 minutes):
-       sudo systemctl start debug-probe-hub-setup
-       journalctl -u debug-probe-hub-setup -f
+  1. Configure WCH Toolchain Access:
+     cd /opt/debug-probe-hub
+     cp docker-compose.override.yml.template docker-compose.override.yml
+     nano docker-compose.override.yml
+     # Add your GitHub token to WCH_TOOLCHAIN_URL
 
-    3. Start the server:
-       sudo systemctl start debug-probe-hub
-       systemctl status debug-probe-hub
+  2. Build Docker Images (10-20 minutes):
+     sudo systemctl start debug-probe-hub-setup
+     journalctl -u debug-probe-hub-setup -f
 
-    4. Verify:
-       docker ps
-       curl http://localhost:8080/status
+  3. Start Debug Probe Hub:
+     sudo systemctl start debug-probe-hub
+     systemctl status debug-probe-hub
 
-  Access the server at: http://<your-ip>:8080
+  4. Verify:
+     docker ps
+     curl http://localhost:8080/status
+
+  See /opt/debug-probe-hub/deploy/README.md for detailed instructions.
+  ========================================

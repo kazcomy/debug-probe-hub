@@ -2,13 +2,40 @@
 
 This guide explains how to deploy Debug Probe Hub on a Proxmox Ubuntu VM using Cloud-init.
 
+## Quick Start Summary
+
+```
+1. Modify template to prepare cloud-init config files (cloud-init-user-data.yml, cloud-init-network.yml)
+2. Create Proxmox VM with cloud-init and USB passthrough
+3. Start VM → cloud-init installs Docker, dependencies, clones repo (STOPS HERE)
+4. SSH in → Modify tempalate to prepare docker-compose.override.yml with GitHub token
+5. Run: sudo systemctl start debug-probe-hub-setup (builds Docker images)
+6. Run: sudo systemctl start debug-probe-hub (starts server)
+7. Test: curl http://localhost:8080/status
+```
+
+**Key Point:** The VM intentionally stops after initial cloud-init setup. You must manually configure WCH toolchain access before building Docker images.
+
 ## Overview
 
-The deployment uses Cloud-init to automatically configure a fresh Ubuntu VM with:
+The deployment uses Cloud-init to automatically configure a fresh Ubuntu VM in **two phases**:
+
+### Phase 1: Automated Pre-Setup (cloud-init)
+When you first start the VM, cloud-init automatically runs and installs:
 - Static IP address (192.168.1.234)
 - Docker and Docker Compose
-- Debug Probe Hub installation
-- systemd service for automatic startup
+- Python dependencies
+- Debug Probe Hub repository
+- udev rules for USB probes
+- systemd services (enabled but not started)
+
+**IMPORTANT:** The VM will stop after Phase 1. This is intentional - you need to configure WCH toolchain access before building Docker images.
+
+### Phase 2: Manual Docker Build and Startup
+After cloud-init completes, you manually:
+1. Configure `docker-compose.override.yml` with GitHub token (for WCH toolchain access)
+2. Run `systemctl start debug-probe-hub-setup` to build Docker images
+3. Run `systemctl start debug-probe-hub` to start the server
 
 ## Prerequisites
 
@@ -116,19 +143,92 @@ qm start $VM_ID
 # tail -f /var/log/cloud-init-output.log
 ```
 
-### Step 3: Verify Deployment
+### Step 3: Post-Installation Setup (After cloud-init Completes)
 
-Wait 3-5 minutes for cloud-init to complete, then:
+**Wait 3-5 minutes** for cloud-init pre-setup to complete. The VM will be ready when you can SSH in.
 
 ```bash
-# SSH into the VM (use your username, not 'debug')
-ssh kazcomy@192.168.1.234
+# SSH into the VM (use your configured username)
+ssh YOUR_USERNAME@192.168.1.234
 
-# Check service status
+# Check pre-setup completion
+cloud-init status
+# Expected output: status: done
+
+# Verify Docker is installed
+docker --version
+docker-compose --version
+```
+
+#### Configure WCH Toolchain Access (REQUIRED)
+
+The WCH container requires private repository access. **You must configure this before building Docker images.**
+
+```bash
+# Navigate to debug-probe-hub directory
+cd /opt/debug-probe-hub
+
+# Copy the docker-compose override template
+cp docker-compose.override.yml.template docker-compose.override.yml
+
+# Edit with your GitHub token
+nano docker-compose.override.yml
+
+# Replace YOUR_TOKEN with your actual GitHub Personal Access Token:
+# services:
+#   debug-box-wch:
+#     build:
+#       args:
+#         WCH_TOOLCHAIN_URL: "https://YOUR_TOKEN@github.com/YOUR_ORG/wch-toolchain-mirror.git"
+```
+
+**How to get a GitHub token:**
+1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. Generate new token with `repo` scope (for private repository access)
+3. Copy the token and paste it into `docker-compose.override.yml`
+
+#### Build Docker Images
+
+```bash
+# Start the setup service (builds all Docker images)
+# This will take 10-20 minutes depending on network speed
+sudo systemctl start debug-probe-hub-setup
+
+# Monitor build progress
+journalctl -u debug-probe-hub-setup -f
+
+# Wait until you see "Build complete" message
+```
+
+#### Start Debug Probe Hub
+
+```bash
+# Start the main service
+sudo systemctl start debug-probe-hub
+
+# Verify service is running
 systemctl status debug-probe-hub
 
 # Check Docker containers
 docker ps
+
+# Test API
+curl http://localhost:8080/status
+```
+
+### Step 4: Verify Deployment
+
+After completing all setup steps:
+
+```bash
+# Check all services are running
+systemctl status debug-probe-hub-pre-setup  # Should be: inactive (dead) - ran once
+systemctl status debug-probe-hub-setup      # Should be: inactive (dead) - ran once
+systemctl status debug-probe-hub            # Should be: active (running)
+
+# Check Docker containers
+docker ps
+# Expected: debug-box-std, debug-box-esp, debug-box-wch all running
 
 # Check if probes are detected
 curl http://localhost:8080/status
