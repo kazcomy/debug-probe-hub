@@ -1,0 +1,36 @@
+# Docker Compose Override Template for Private WCH Toolchain Access
+#
+# Usage:
+#   1. Copy this file:
+#      cp docker-compose.override.yml.template docker-compose.override.yml
+#
+#   2. Edit docker-compose.override.yml and replace placeholders with your credentials
+#
+#   3. Build normally (docker-compose automatically uses override files):
+#      docker-compose build debug-box-wch
+#
+# Note: docker-compose.override.yml is gitignored and will not be committed
+
+version: '3.8'
+
+services:
+  debug-box-wch:
+    build:
+      args:
+        # REQUIRED: Your private WCH toolchain mirror repository URL
+        #
+        # ⚠️ IMPORTANT: WCH OpenOCD cannot be publicly redistributed due to license restrictions
+        # You must provide your own private wch-toolchain-mirror repository
+        #
+        # This repository should contain:
+        #   - WCH toolchain archive (.tar.gz, .tar.xz) with OpenOCD and GCC
+        #   - Git LFS enabled for large binary files
+        #
+        # Format options:
+        #   - HTTPS with token: "https://YOUR_TOKEN@github.com/YOUR_ORG/wch-toolchain-mirror.git"
+        #   - SSH (requires SSH key): "git@github.com:YOUR_ORG/wch-toolchain-mirror.git"
+        #
+        WCH_TOOLCHAIN_URL: "https://YOUR_TOKEN@github.com/YOUR_ORG/wch-toolchain-mirror.git"
+
+        # Optional: Specific git ref (branch, tag, or commit)
+        # WCH_TOOLCHAIN_REF: "main"

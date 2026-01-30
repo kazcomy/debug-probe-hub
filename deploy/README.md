@@ -20,34 +20,6 @@ The deployment uses Cloud-init to automatically configure a fresh Ubuntu VM with
    - 24.04 LTS is recommended for longer support (until 2034) and newer packages
 3. **USB Debug Probes** physically connected to the Proxmox host
 
-## Quick Start (TL;DR)
-
-For the impatient, here's the minimal command sequence:
-
-```bash
-# On Proxmox host
-# 1. Upload cloud-init files to /var/lib/vz/snippets/
-# 2. Download Ubuntu image
-cd /var/lib/vz/template/iso
-wget https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img
-
-# 3. Create VM with cloud-init
-qm create 100 --name debug-probe-hub --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0
-qm importdisk 100 ubuntu-24.04-server-cloudimg-amd64.img local-lvm
-qm set 100 --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-100-disk-0 --boot c --bootdisk scsi0
-qm resize $VM_ID scsi0 100G
-qm set 100 --ide2 local-lvm:cloudinit
-qm set 100 --cicustom "user=local:snippets/cloud-init-user-data.yml,network=local:snippets/cloud-init-network.yml"
-
-# 4. Add USB devices (check with lsusb)
-qm set 100 --usb0 host=1366:0105  # Your J-Link VID:PID
-
-# 5. Start and wait 3-5 minutes
-qm start 100
-```
-
-See detailed steps below for full explanation.
-
 ## Detailed Setup
 
 ### Step 1: Prepare Cloud-init Configuration
@@ -88,28 +60,36 @@ cd /var/lib/vz/template/iso
 wget https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img
 
 # === Step 3: Create and configure VM ===
+#!/bin/bash
+
 # Variables
 VM_ID=100
 VM_NAME="debug-probe-hub"
-CLOUD_IMAGE="/var/lib/vz/template/iso/ubuntu-24.04-server-cloudimg-amd64.img"
-
-# Create VM
+CLOUD_IMAGE="/var/lib/vz/template/iso/noble-server-cloudimg-amd64.img"
+STORAGE="local-lvm"
+# 1. Create VM
 qm create $VM_ID --name $VM_NAME --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0
 
-# Import disk
-qm importdisk $VM_ID $CLOUD_IMAGE local-lvm
+# 2. Import disk
+qm importdisk $VM_ID $CLOUD_IMAGE $STORAGE
 
-# Attach disk
-qm set $VM_ID --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-$VM_ID-disk-0
+# 3. Attach disk
+qm set $VM_ID --scsihw virtio-scsi-pci --scsi0 $STORAGE:vm-$VM_ID-disk-0
 
-# Make disk bootable
+# 4. Resize disk
+qm resize $VM_ID scsi0 100G
+
+# 5. Make it bootable
 qm set $VM_ID --boot c --bootdisk scsi0
 
-# Add Cloud-init drive
-qm set $VM_ID --ide2 local-lvm:cloudinit
+# 6. Add Cloud-init drive
+qm set $VM_ID --ide2 $STORAGE:cloudinit
 
-# Configure Cloud-init with custom snippets
+# 7. Configure Cloud-init with custom snippets
 qm set $VM_ID --cicustom "user=local:snippets/cloud-init-user-data.yml,network=local:snippets/cloud-init-network.yml"
+
+# (Optional) Apply configuration and generate image
+qm cloudinit update $VM_ID
 
 # === Step 4: Add USB devices ===
 # Find your USB devices first

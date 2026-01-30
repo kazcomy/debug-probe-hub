@@ -19,6 +19,13 @@ deploy/cloud-init-user-data.yml
 deploy/cloud-init-network.yml
 deploy/*.tfvars
 
+# Docker secrets and credentials
+docker-compose.override.yml
+.git-token
+.github-token
+*.secret
+wch-credentials.env
+
 # IDE
 .vscode/
 .idea/

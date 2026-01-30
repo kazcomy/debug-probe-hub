@@ -23,7 +23,7 @@ containers:
     name: debug-box-wch
     image_name: debugger-station-wch
     build_context: ./docker/wch
-    description: "WCH RISC-V tools (minichlink)"
+    description: "WCH RISC-V tools 
 
 # Debug probe definitions
 probes:
@@ -109,8 +109,10 @@ targets:
     compatible_probes: [4]
     commands:
       wch-link:
-        debug: "minichlink -G"
-        flash: "minichlink -w {firmware_path} flash -b"
+        # WCH OpenOCD for programming and debugging
+        flash: "openocd -f wch-riscv.cfg -c 'program {firmware_path} verify reset exit'"
+        debug: "openocd -f wch-riscv.cfg -c 'gdb_port 3333' -c 'telnet_port 4444'"
+        # Note: wlink can be used separately for SWDIO debug printing: wlink serial
 
 # Port allocation
 ports:

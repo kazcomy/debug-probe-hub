@@ -33,7 +33,7 @@ services:
     network_mode: host
     restart: unless-stopped
 
-  # WCH RISC-V tools container (minichlink)
+  # WCH RISC-V tools container
   debug-box-wch:
     build:
       context: ./docker/wch

@@ -1,21 +1,70 @@
 FROM alpine:latest
 
-# Install build dependencies and runtime libraries
+# Install runtime and build dependencies (including Rust for wlink)
 RUN apk add --no-cache \
-    build-base \
     git \
+    git-lfs \
+    bash \
+    libusb \
     libusb-dev \
+    eudev \
     eudev-dev \
     pkgconfig \
-    libusb
+    rust \
+    cargo
 
-# Clone and build minichlink
-RUN git clone https://github.com/cnlohr/ch32v003fun.git /tmp/ch32v003fun && \
-    cd /tmp/ch32v003fun/minichlink && \
-    make && \
-    cp minichlink /usr/local/bin/ && \
-    chmod +x /usr/local/bin/minichlink && \
-    rm -rf /tmp/ch32v003fun
+# Build argument for REQUIRED private WCH toolchain repository
+ARG WCH_TOOLCHAIN_URL=""
+ARG WCH_TOOLCHAIN_REF=""
+
+# Fail fast with helpful error message if WCH_TOOLCHAIN_URL not provided
+RUN if [ -z "$WCH_TOOLCHAIN_URL" ]; then \
+      echo ""; \
+      echo "========================================"; \
+      echo "ERROR: WCH_TOOLCHAIN_URL is required"; \
+      echo "========================================"; \
+      echo ""; \
+      echo "WCH OpenOCD binaries cannot be redistributed publicly due to license restrictions."; \
+      echo "You MUST provide your own private WCH toolchain repository access."; \
+      echo ""; \
+      echo "Setup instructions:"; \
+      echo "  1. Copy template:"; \
+      echo "     cp docker-compose.override.yml.template docker-compose.override.yml"; \
+      echo ""; \
+      echo "  2. Edit docker-compose.override.yml and set your repository URL with token:"; \
+      echo "     WCH_TOOLCHAIN_URL: \"https://YOUR_TOKEN@github.com/YOUR_ORG/wch-toolchain-mirror.git\""; \
+      echo ""; \
+      echo "  3. Build:"; \
+      echo "     docker-compose build debug-box-wch"; \
+      echo ""; \
+      echo "See README.md for more details."; \
+      echo ""; \
+      exit 1; \
+    fi
+
+ENV WCH_TOOLCHAIN=/opt/wch-toolchain
+ENV PATH="${WCH_TOOLCHAIN}/bin:${PATH}"
+
+# Copy WCH toolchain setup script
+COPY setup_wch_toolchain.sh /tmp/
+RUN chmod +x /tmp/setup_wch_toolchain.sh
+
+# Install WCH OpenOCD toolchain from private repository
+RUN /tmp/setup_wch_toolchain.sh
+
+# Verify OpenOCD installation
+RUN if [ ! -f "${WCH_TOOLCHAIN}/bin/openocd" ] && [ ! -f "/usr/local/bin/openocd" ]; then \
+      echo "ERROR: OpenOCD not found after toolchain installation"; \
+      echo "Check your WCH_TOOLCHAIN_URL and repository contents"; \
+      exit 1; \
+    fi
+
+# Build and install wlink from source for SWDIO debug printing
+RUN cargo install wlink --root /usr/local && \
+    wlink --version || (echo "ERROR: wlink installation failed" && exit 1)
+
+# Verify wlink installation
+RUN which wlink || (echo "ERROR: wlink not in PATH" && exit 1)
 
 WORKDIR /work
 

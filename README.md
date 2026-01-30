@@ -29,7 +29,7 @@ Debug Probe Hub provides a centralized HTTP API to manage firmware flashing and 
                     │
                     ├─→ Docker: debug-box-std (OpenOCD, J-Link)
                     ├─→ Docker: debug-box-esp (OpenOCD-ESP32)
-                    └─→ Docker: debug-box-wch (minichlink)
+                    └─→ Docker: debug-box-wch (WCH OpenOCD, wlink)
 ```
 
 ## File Structure
@@ -99,6 +99,83 @@ This will:
 - Generate and install udev rules
 - Build Docker images
 - Create working directories
+
+### ⚠️ WCH Toolchain Configuration (REQUIRED for WCH-Link support)
+
+**IMPORTANT:** The WCH container requires private repository access due to license restrictions.
+
+#### Background
+
+WCH OpenOCD binaries **cannot be publicly redistributed** because:
+- WCH does not provide source code for their OpenOCD fork
+- Redistributing binaries without source code violates GPL license requirements
+- Creating a public mirror would expose you to copyright/license violation claims
+
+#### Setup Instructions
+
+**Step 1: Obtain WCH Toolchain Access**
+
+You need a private `wch-toolchain-mirror` repository. This repository should contain:
+- A `.tar.gz` or `.tar.xz` archive with WCH OpenOCD and GCC toolchain binaries
+- Git LFS enabled for large binary files
+- Archive structure matching WCH MounRiverStudio layout (OpenOCD/, Toolchain/, etc.)
+
+**IMPORTANT:** Keep this repository **private** - do not redistribute publicly due to license restrictions.
+
+Options to obtain:
+1. Create your own private `wch-toolchain-mirror` repository from WCH MounRiverStudio installation
+2. Use your organization's private toolchain repository
+3. Contact WCH for official toolchain access
+
+**Step 2: Configure Build Access**
+
+The easiest method is using `docker-compose.override.yml`:
+
+```bash
+# 1. Copy the template
+cp docker-compose.override.yml.template docker-compose.override.yml
+
+# 2. Edit docker-compose.override.yml
+nano docker-compose.override.yml
+
+# Set your private repository URL with access token:
+# services:
+#   debug-box-wch:
+#     build:
+#       args:
+#         WCH_TOOLCHAIN_URL: "https://YOUR_TOKEN@github.com/YOUR_ORG/wch-toolchain-mirror.git"
+
+# 3. Build the WCH container
+docker-compose build debug-box-wch
+```
+
+**Alternative Methods:**
+
+Environment variable:
+```bash
+export WCH_TOOLCHAIN_URL="https://YOUR_TOKEN@github.com/YOUR_ORG/wch-toolchain-mirror.git"
+docker-compose build debug-box-wch
+```
+
+BuildKit secrets (CI/CD):
+```bash
+echo "YOUR_TOKEN" > .git-token
+export DOCKER_BUILDKIT=1
+docker build \
+  --secret id=git_token,src=.git-token \
+  --build-arg WCH_TOOLCHAIN_URL="https://github.com/YOUR_ORG/wch-toolchain-mirror.git" \
+  -f docker/wch/Dockerfile \
+  -t debug-probe-hub-wch:latest \
+  docker/wch
+```
+
+**Security Notes:**
+- Never commit tokens or credentials to the repository
+- `docker-compose.override.yml` is gitignored automatically
+- Use BuildKit secrets for production/CI environments
+- Rotate tokens regularly
+
+---
 
 4. Connect your debug probes and verify:
 ```bash
@@ -462,7 +539,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [OpenOCD](https://openocd.org/) - Open On-Chip Debugger
 - [Espressif ESP-IDF](https://github.com/espressif/esp-idf) - ESP32 development framework
 - [Segger J-Link](https://www.segger.com/products/debug-probes/j-link/) - Professional debug probes
-- [WCH minichlink](https://github.com/cnlohr/ch32v003fun) - WCH RISC-V debug tools
+- [wlink](https://github.com/ch32-rs/wlink) - Rust-based WCH-Link CLI tool for SWDIO debug printing
+- [WCH](http://www.wch-ic.com/) - WCH RISC-V microcontrollers and debug tools
 
 ## Contributing
 

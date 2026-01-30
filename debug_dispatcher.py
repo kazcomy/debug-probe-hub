@@ -49,8 +49,13 @@ def cleanup_existing_processes(container_name, probe_id, interface):
             stderr=subprocess.DEVNULL
         )
     elif interface == "wch-link":
+        # Kill OpenOCD and wlink processes
         subprocess.run(
-            ["docker", "exec", container_name, "pkill", "minichlink"],
+            ["docker", "exec", container_name, "pkill", "openocd"],
+            stderr=subprocess.DEVNULL
+        )
+        subprocess.run(
+            ["docker", "exec", container_name, "pkill", "wlink"],
             stderr=subprocess.DEVNULL
         )
 
