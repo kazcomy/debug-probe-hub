@@ -1,18 +1,26 @@
-FROM alpine:latest
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Install runtime and build dependencies (including Rust for wlink)
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     git \
     git-lfs \
     bash \
-    libusb \
-    libusb-dev \
-    eudev \
-    eudev-dev \
-    pkgconfig \
-    rust \
-    cargo \
-    socat
+    libusb-1.0-0 \
+    libusb-1.0-0-dev \
+    libhidapi-hidraw0 \
+    libhidapi-dev \
+    libjaylink0 \
+    pkg-config \
+    curl \
+    build-essential \
+    socat \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust (needed for wlink)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Build argument for REQUIRED private WCH toolchain repository
 ARG WCH_TOOLCHAIN_URL=""
