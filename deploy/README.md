@@ -300,15 +300,18 @@ sudo netplan apply
 ## Updating Debug Probe Hub
 
 ```bash
-# SSH into VM
-ssh debug@192.168.1.234
+# SSH into VM (use your username from cloud-init config)
+ssh YOUR_USERNAME@192.168.1.234
 
 # Pull latest changes
 cd /opt/debug-probe-hub
 git pull
 
-# Restart service
-sudo systemctl restart debug-probe-hub
+# Rebuild Docker images if needed
+sudo systemctl restart debug-probe-hub-setup.service
+
+# Restart main service
+sudo systemctl restart debug-probe-hub.service
 ```
 
 ## Advanced: Multiple Debug Stations
