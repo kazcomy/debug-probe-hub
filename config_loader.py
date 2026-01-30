@@ -30,6 +30,10 @@ class Config:
     def telnet_base_port(self) -> int:
         return self.data['ports']['telnet_base']
 
+    @property
+    def rtt_base_port(self) -> int:
+        return self.data['ports']['rtt_base']
+
     def get_probe(self, probe_id: int) -> Optional[Dict]:
         """Get probe configuration by ID"""
         for probe in self.data['probes']:
@@ -40,6 +44,13 @@ class Config:
     def get_all_probes(self) -> List[Dict]:
         """Get all probe configurations"""
         return self.data['probes']
+
+    def get_probe_device_path(self, probe_id: int) -> Optional[str]:
+        """Get device_path for USB-serial probes"""
+        probe = self.get_probe(probe_id)
+        if not probe:
+            return None
+        return probe.get('device_path')
 
     def get_target(self, target_name: str) -> Optional[Dict]:
         """Get target configuration by name"""

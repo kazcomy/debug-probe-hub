@@ -136,6 +136,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not all([target, probe_id, mode]):
                 raise ValueError("Missing required fields: target, probe, mode")
 
+            if mode not in ["debug", "flash", "print"]:
+                raise ValueError(f"Invalid mode: {mode}. Must be 'debug', 'flash', or 'print'")
+
             probe_id = int(probe_id)
 
             # Validate configuration

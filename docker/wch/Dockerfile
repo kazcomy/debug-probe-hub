@@ -11,7 +11,8 @@ RUN apk add --no-cache \
     eudev-dev \
     pkgconfig \
     rust \
-    cargo
+    cargo \
+    socat
 
 # Build argument for REQUIRED private WCH toolchain repository
 ARG WCH_TOOLCHAIN_URL=""

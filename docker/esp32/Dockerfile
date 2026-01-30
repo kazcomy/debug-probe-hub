@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     udev \
     usbutils \
     libusb-1.0-0 \
+    socat \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /work

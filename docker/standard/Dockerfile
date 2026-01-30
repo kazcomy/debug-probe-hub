@@ -21,8 +21,8 @@ RUN apt-get update && apt-get install -y \
     libftdi1-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install OpenOCD
-RUN apt-get update && apt-get install -y openocd && rm -rf /var/lib/apt/lists/*
+# Install OpenOCD and socat for serial proxying
+RUN apt-get update && apt-get install -y openocd socat && rm -rf /var/lib/apt/lists/*
 
 # Install J-Link Software
 # Note: You need to download J-Link software manually from SEGGER website

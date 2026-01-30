@@ -75,6 +75,7 @@ targets:
           q
           EOF
           JLinkExe -CommandFile /tmp/flash_nrf.jlink
+        print: "JLinkRTTClient -Device nRF52840_xxAA -if SWD -Speed 4000 -Select USB={serial} -RTTTelnetPort {rtt_port}"
       cmsis-dap:
         debug: "openocd -f interface/cmsis-dap.cfg -f target/nrf52.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'tcl_port disabled' -c 'bindto 0.0.0.0'"
         flash: "openocd -f interface/cmsis-dap.cfg -f target/nrf52.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
@@ -109,12 +110,12 @@ targets:
     compatible_probes: [wch-link]
     commands:
       wch-link:
-        # WCH OpenOCD for programming and debugging
         flash: "openocd -f wch-riscv.cfg -c 'program {firmware_path} verify reset exit'"
         debug: "openocd -f wch-riscv.cfg -c 'gdb_port 3333' -c 'telnet_port 4444'"
-        # Note: wlink can be used separately for SWDIO debug printing: wlink serial
+        print: "wlink serial | socat STDIN TCP-LISTEN:{rtt_port},reuseaddr,fork,bind=0.0.0.0"
 
 # Port allocation
 ports:
   gdb_base: 3330
   telnet_base: 4440
+  rtt_base: 9090  # Base port for RTT/print output (accessible from remote clients)
