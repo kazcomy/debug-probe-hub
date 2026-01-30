@@ -104,7 +104,17 @@ targets:
         debug: "openocd -f interface/cmsis-dap.cfg -f target/stm32g0x.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'bindto 0.0.0.0'"
         flash: "openocd -f interface/cmsis-dap.cfg -f target/stm32g0x.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
 
-  ch32v:
+  ch32v003:
+    container: wch
+    description: "WCH CH32V series (RISC-V)"
+    compatible_probes: [wch-link]
+    commands:
+      wch-link:
+        flash: "openocd -f wch-riscv.cfg -c 'program {firmware_path} verify reset exit'"
+        debug: "openocd -f wch-riscv.cfg -c 'gdb_port 3333' -c 'telnet_port 4444'"
+        print: "wlink serial | socat STDIN TCP-LISTEN:{rtt_port},reuseaddr,fork,bind=0.0.0.0"
+
+  ch32v203:
     container: wch
     description: "WCH CH32V series (RISC-V)"
     compatible_probes: [wch-link]
