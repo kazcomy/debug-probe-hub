@@ -23,7 +23,7 @@ containers:
     name: debug-box-wch
     image_name: debug-probe-hub-wch
     build_context: ./docker/wch
-    description: "WCH RISC-V tools 
+    description: "WCH RISC-V tools (WCH OpenOCD)" 
 
 # Debug probe definitions
 probes:
