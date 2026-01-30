@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     libhidapi-hidraw0 \
     libhidapi-dev \
     libjaylink0 \
+    libudev-dev \
     pkg-config \
     curl \
     build-essential \
