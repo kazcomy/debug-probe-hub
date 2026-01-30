@@ -9,7 +9,8 @@ import subprocess
 import json
 import os
 import sys
-import email.message
+import cgi
+import io
 from urllib.parse import urlparse
 from pathlib import Path
 from config_loader import get_config
@@ -187,26 +188,31 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def _parse_multipart(self, content_type, body):
         """Parse multipart form data"""
-        msg = email.message.Message()
-        msg['Content-Type'] = content_type
-        msg.set_payload(body)
+        # Create file-like object from body
+        environ = {
+            'REQUEST_METHOD': 'POST',
+            'CONTENT_TYPE': content_type,
+            'CONTENT_LENGTH': len(body)
+        }
+
+        form = cgi.FieldStorage(
+            fp=io.BytesIO(body),
+            environ=environ,
+            keep_blank_values=True
+        )
 
         form_data = {}
         file_data = None
         filename = "firmware.bin"
 
-        if msg.is_multipart():
-            for part in msg.get_payload():
-                name = part.get_param('name', header='content-disposition')
-                if name == 'file':
-                    fn = part.get_param('filename', header='content-disposition')
-                    if fn:
-                        filename = os.path.basename(fn)
-                    file_data = part.get_payload(decode=True)
-                elif name:
-                    payload = part.get_payload(decode=True)
-                    if payload:
-                        form_data[name] = payload.decode('utf-8').strip()
+        # Extract form fields
+        for key in form.keys():
+            item = form[key]
+            if item.filename:  # File upload
+                filename = os.path.basename(item.filename)
+                file_data = item.file.read()
+            else:  # Regular form field
+                form_data[key] = item.value
 
         return form_data, file_data, filename
 
