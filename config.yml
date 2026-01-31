@@ -85,24 +85,24 @@ targets:
     description: "Espressif ESP32-S3"
     compatible_probes: [jlink, cmsis-dap]
     commands:
-      jlink: #ESP32 S3 is not officially supported by SEGGER as of 2026.01
-        debug: "openocd -f interface/jlink.cfg -f board/esp32s3-builtin.cfg -c 'jlink serial {serial}' -c 'gdb_port {gdb_port}' -c 'bindto 0.0.0.0'"
-        flash: "openocd -f interface/jlink.cfg -f board/esp32s3-builtin.cfg -c 'jlink serial {serial}' -c 'program_esp {firmware_path} verify reset exit'"
+      jlink: #ESP32 S3 is not officially supported by SEGGER - use CMSIS-DAP interface
+        debug: "openocd -f interface/cmsis-dap.cfg -f target/esp32s3.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f interface/cmsis-dap.cfg -f target/esp32s3.cfg -c 'adapter serial {serial}' -c 'program_esp {firmware_path} 0x0 verify reset exit'"
       cmsis-dap:
-        debug: "openocd -f interface/cmsis-dap.cfg -f board/esp32s3-builtin.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'bindto 0.0.0.0'"
-        flash: "openocd -f interface/cmsis-dap.cfg -f board/esp32s3-builtin.cfg -c 'adapter serial {serial}' -c 'program_esp {firmware_path} verify reset exit'"
+        debug: "openocd -f interface/cmsis-dap.cfg -f target/esp32s3.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f interface/cmsis-dap.cfg -f target/esp32s3.cfg -c 'adapter serial {serial}' -c 'program_esp {firmware_path} 0x0 verify reset exit'"
 
   stm32g3:
     container: standard
     description: "STM32G3 series"
     compatible_probes: [jlink, cmsis-dap]
     commands:
-      jlink: #ESP32 S3 is not officially supported by SEGGER as of 2026.01
-        debug: "openocd -f interface/jlink.cfg -f target/stm32g0x.cfg -c 'jlink serial {serial}' -c 'gdb_port {gdb_port}' -c 'bindto 0.0.0.0'"
-        flash: "openocd -f interface/jlink.cfg -f target/stm32g0x.cfg -c 'jlink serial {serial}' -c 'program {firmware_path} verify reset exit'"
+      jlink:
+        debug: "openocd -f interface/jlink.cfg -f target/stm32g4x.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f interface/jlink.cfg -f target/stm32g4x.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
       cmsis-dap:
-        debug: "openocd -f interface/cmsis-dap.cfg -f target/stm32g0x.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'bindto 0.0.0.0'"
-        flash: "openocd -f interface/cmsis-dap.cfg -f target/stm32g0x.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
+        debug: "openocd -f interface/cmsis-dap.cfg -f target/stm32g4x.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f interface/cmsis-dap.cfg -f target/stm32g4x.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
 
   ch32v003:
     container: wch
