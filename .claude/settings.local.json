@@ -10,7 +10,8 @@
       "Bash(systemctl is-enabled:*)",
       "Bash(curl:*)",
       "Bash(python3:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(ssh:*)"
     ]
   }
 }
