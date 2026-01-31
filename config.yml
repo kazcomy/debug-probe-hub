@@ -86,8 +86,8 @@ targets:
     compatible_probes: [jlink, cmsis-dap]
     commands:
       jlink: #ESP32 S3 is not officially supported by SEGGER - J-Link acts as CMSIS-DAP
-        debug: "openocd -f interface/cmsis-dap.cfg -c 'transport select jtag' -c 'adapter serial {serial}' -f target/esp32s3.cfg -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
-        flash: "openocd -f interface/cmsis-dap.cfg -c 'transport select jtag' -c 'adapter serial {serial}' -f target/esp32s3.cfg -c 'program_esp {firmware_path} 0x0 verify reset exit'"
+        debug: "openocd -f interface/cmsis-dap.cfg -c 'cmsis_dap_vid_pid 0x1366 0x0105' -c 'transport select jtag' -c 'adapter serial {serial}' -f target/esp32s3.cfg -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f interface/cmsis-dap.cfg -c 'cmsis_dap_vid_pid 0x1366 0x0105' -c 'transport select jtag' -c 'adapter serial {serial}' -f target/esp32s3.cfg -c 'program_esp {firmware_path} 0x0 verify reset exit'"
       cmsis-dap:
         debug: "openocd -f interface/cmsis-dap.cfg -c 'transport select jtag' -c 'adapter serial {serial}' -f target/esp32s3.cfg -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
         flash: "openocd -f interface/cmsis-dap.cfg -c 'transport select jtag' -c 'adapter serial {serial}' -f target/esp32s3.cfg -c 'program_esp {firmware_path} 0x0 verify reset exit'"
