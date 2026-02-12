@@ -2,13 +2,22 @@
 
 Unified remote debugging and firmware flashing hub for multiple MCU targets and probe types.
 
+## Background
+
+This system was built to mitigate context-switch pain across parallel embedded projects.
+
+- Multiple projects run in parallel, and each uses different MCU families.
+- Required probe stacks differ per target (`J-Link`, `CMSIS-DAP`, `WCH-Link`) and so do `gdb`/flash tools and USB-UART assignments.
+- Re-plugging and reconfiguring local tools for each task switch consumed too much time and caused frequent operator mistakes.
+- Debug Probe Hub centralizes probe access so developers can switch tasks with API-level routing instead of manual USB/toolchain rewiring.
+
 ## Start Here
 
 - Proxmox production deployment: `docs/deploy.md`
+- Manual (non-Proxmox) operation: `docs/operations.md`
 - Architecture and diagrams: `docs/architecture.md`
 - API reference and request examples: `docs/api.md`
 - Configuration guide (`config.yml`): `docs/configuration.md`
-- Operations (manual setup, runbook, troubleshooting): `docs/operations.md`
 
 ## System Topology
 
@@ -74,13 +83,20 @@ C4Component
 - Do not install this repository on Windows client or `devsrv` when those are separate roles.
 - In cloud-init deployment, clone can be done automatically (see `deploy/cloud-init-user-data.template.yml`).
 
+## WCH Distribution Notice
+
+- WCH-related debug tool components are handled via a private repository override and are not redistributed from this repository.
+- This is to avoid redistributing artifacts with unclear or incompatible open-source compliance status.
+- Keep WCH binaries/images private and do not publish or mirror them publicly from this project.
+- Configure private source access with `docker-compose.override.yml` (template: `docker-compose.override.yml.template`).
+
 ## Documentation Layout
 
 - `docs/deploy.md`: Proxmox + cloud-init provisioning runbook
+- `docs/operations.md`: non-Proxmox/manual operation and troubleshooting
 - `docs/architecture.md`: architecture and concurrency behavior
 - `docs/api.md`: endpoint contract and usage patterns
 - `docs/configuration.md`: adding probes/targets/interfaces
-- `docs/operations.md`: local/manual setup, systemd flow, troubleshooting
 
 ## Quick Validation
 

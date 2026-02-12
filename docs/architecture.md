@@ -1,21 +1,4 @@
 # Architecture
-
-## Role-Based Topology
-
-```mermaid
-flowchart LR
-    Client[Development Client\nWindows/macOS/Linux IDE]
-    Build[Development Server\nDev Containers + Build Tools]
-    Hub[Debug Probe Hub VM\nUbuntu + debug-probe-hub]
-    Probes[Physical Debug Probes]
-    Targets[Target Boards]
-
-    Client -->|SSH/Remote Dev| Build
-    Build -->|HTTP API| Hub
-    Hub -->|USB passthrough path| Probes
-    Probes -->|SWD/JTAG/UART| Targets
-```
-
 ## Multi-Container and Multi-Probe Runtime
 
 ```mermaid
@@ -80,6 +63,30 @@ This project uses per-probe containers to avoid tool concurrency issues:
 - Prevents "cleanup kills other sessions" and helps with commercial tools that can't run concurrently in a shared environment.
 - Locking remains probe-specific (`/var/lock/probe_{id}.lock`).
 - For `debug` and `print`, a background lock monitor keeps the probe lock while session process is alive, preventing accidental same-probe replacement.
+
+## Architecture decisions
+
+### Decision A: One probe = one container + one dedicated IP (rejected)
+
+Question:
+- "Why not assign each probe to a separate container with its own IP, and let clients switch by IP?"
+
+Reasons it was rejected:
+- Client burden becomes high: each project/tool profile must manage endpoint/IP switching logic.
+- Operational burden grows with probe count: IP management, service discovery, and per-endpoint health checks increase.
+- Isolation benefit is limited in this system: containers use `privileged: true` and `/dev:/dev`, so USB visibility is shared at device-node level.
+- Concurrency/control problems are already handled by probe-level routing + lock files, without forcing clients to manage many endpoints.
+
+### Decision B: One probe = one Mini PC/Raspberry Pi + one IP (rejected)
+
+Question:
+- "Why not physically split probes across multiple Mini PCs/Raspberry Pis and switch by host IP?"
+
+Reasons it was rejected:
+- Hardware and maintenance cost scale linearly (hosts, power, storage, OS updates, monitoring).
+- Failure surface increases: more nodes mean more network and lifecycle drift issues.
+- Capacity becomes fragmented (idle probes on one host cannot be flexibly reused as easily).
+- For this use case, centralizing probes in one Hub VM with per-probe container instances gives enough operational separation at much lower cost.
 
 ## Mapping rules
 
