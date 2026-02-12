@@ -2,19 +2,62 @@
 
 This guide explains how to deploy Debug Probe Hub on a Proxmox Ubuntu VM using Cloud-init.
 
+## Scope of This Document
+
+- This file is an operation runbook for Proxmox + cloud-init steps.
+- Architecture and role-based topology are documented in `../README.md`.
+
+## Where This Repository Must Be Installed
+
+- Install target is the **Debug Probe Hub Ubuntu VM** created on Proxmox.
+- Recommended path in that VM: `/opt/debug-probe-hub`.
+- Do not install this repository on your Windows client or on your Dev Container host (`devsrv`) if those are separate machines.
+- With the provided cloud-init template, clone is done automatically on first boot.
+- If you disable auto-clone, SSH into the VM and clone manually:
+
+```bash
+ssh YOUR_USERNAME@<debug-hub-ip>
+sudo mkdir -p /opt
+sudo chown -R "$USER":"$USER" /opt
+git clone https://github.com/YOUR_GITHUB_USERNAME/debug-probe-hub.git /opt/debug-probe-hub
+```
+
+## Most Common Pitfall: Can't SSH In
+
+Ubuntu "cloud images" often end up with **no usable password SSH login** unless you explicitly enable it via cloud-init (or you use SSH keys).
+
+- Recommended: SSH key login (set `ssh_authorized_keys` in `cloud-init-user-data.yml`).
+- If you want password login over SSH: ensure `ssh_pwauth: true` and a valid `chpasswd:` block exist in `cloud-init-user-data.yml`.
+
+If you already booted the VM and you can't log in, open the VM console in Proxmox and check:
+
+```bash
+cloud-init status
+sudo tail -n 200 /var/log/cloud-init-output.log
+```
+
 ## Quick Start Summary
 
 ```
 1. Modify template to prepare cloud-init config files (cloud-init-user-data.yml, cloud-init-network.yml)
 2. Create Proxmox VM with cloud-init and USB passthrough
 3. Start VM → cloud-init installs Docker, dependencies, clones repo (STOPS HERE)
-4. SSH in → Modify tempalate to prepare docker-compose.override.yml with GitHub token
+4. SSH in → Modify template to prepare docker-compose.override.yml with GitHub token
 5. Run: sudo systemctl start debug-probe-hub-setup (builds Docker images)
 6. Run: sudo systemctl start debug-probe-hub (starts server)
 7. Test: curl http://localhost:8080/status
 ```
 
 **Key Point:** The VM intentionally stops after initial cloud-init setup. You must manually configure WCH toolchain access before building Docker images.
+
+## USB and Container Model (Important)
+
+- One image per toolchain, multiple containers (one per `probe_id`), generated into `docker-compose.probes.yml`.
+- Example container names: `debug-box-std-p1`, `debug-box-esp-p1`, `debug-box-wch-p4`.
+- This avoids cross-probe interference from tools that can't run concurrently (common with commercial software), while still reusing the same image.
+- `generate_docker_compose_probes.py` automatically merges `docker-compose.override.yml` build args (for example `WCH_TOOLCHAIN_URL`) into generated build services.
+- Probe selection is done by serial/probe ID at dispatch time, and per-probe lock files prevent same-probe conflicts.
+- Containers mount `/dev:/dev` and run `privileged: true`, so they can access every USB device that Proxmox passed through to the Ubuntu VM.
 
 ## Overview
 
@@ -63,6 +106,20 @@ After cloud-init completes, you manually:
    - `cloud-init-network.yml`: IP address, gateway, DNS servers, interface name
 
    Note: These files are gitignored and won't be committed.
+
+3. Sanity check (recommended): make sure no placeholders remain
+   ```bash
+   grep -nE 'YOUR_|TODO' cloud-init-user-data.yml cloud-init-network.yml || true
+   ```
+
+### SSH Access Options
+
+In `cloud-init-user-data.yml`:
+
+- SSH key login (recommended): set a real public key under `ssh_authorized_keys:` and set `ssh_pwauth: false` (or remove it).
+- Password SSH login: keep `ssh_pwauth: true` and set a real password via `chpasswd:`.
+
+The template is written to work with plaintext passwords via `chpasswd:`. If you prefer hashed passwords, remove the `chpasswd:` block and set a hashed `passwd:` in the user entry instead.
 
 ### Step 2: Create VM in Proxmox (Command Line)
 

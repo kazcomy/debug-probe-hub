@@ -44,8 +44,9 @@ RUN if [ -z "$WCH_TOOLCHAIN_URL" ]; then \
       echo "  2. Edit docker-compose.override.yml and set your repository URL with token:"; \
       echo "     WCH_TOOLCHAIN_URL: \"https://YOUR_TOKEN@github.com/YOUR_ORG/wch-toolchain-mirror.git\""; \
       echo ""; \
-      echo "  3. Build:"; \
-      echo "     docker-compose build debug-box-wch"; \
+      echo "  3. Generate per-probe compose and build:"; \
+      echo "     python3 generate_docker_compose_probes.py --output docker-compose.probes.yml"; \
+      echo "     docker-compose -f docker-compose.probes.yml build"; \
       echo ""; \
       echo "See README.md for more details."; \
       echo ""; \

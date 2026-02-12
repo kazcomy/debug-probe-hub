@@ -9,18 +9,29 @@
 # Hostname
 hostname: debug-probe-hub
 
+# SSH access
+# - Recommended: use SSH public keys.
+# - If you want to allow password login over SSH, enable `ssh_pwauth` and configure `chpasswd` below.
+ssh_pwauth: true  # TODO: Set false if you want SSH-key-only login
+
 # Users TODO: Customize this section
 users:
   - name: YOUR_USERNAME_HERE  # TODO: Change to your username
-    groups: [sudo, docker]
+    groups: [sudo]
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
     shell: /bin/bash
-    passwd: "YOUR_PASSWORD_HERE"  # TODO: Change to your password (will be hashed by cloud-init)
     lock_passwd: false
-    chpasswd: { expire: False }
-    ssh_pwauth: True
     ssh_authorized_keys:
       - YOUR_SSH_PUBLIC_KEY_HERE  # TODO: Add your SSH public key (optional)
+
+# Set an initial password (plaintext).
+# - SECURITY: Do not leave placeholders as-is.
+# - If you want SSH-key-only login, remove this block (and set `ssh_pwauth: false` above).
+# - If you prefer hashed passwords, remove this block and set `passwd` with a hash in the user entry instead.
+chpasswd:
+  expire: false
+  list: |
+    YOUR_USERNAME_HERE:YOUR_PASSWORD_HERE  # TODO: Change to your desired password
 
 # Timezone TODO: Change if needed
 timezone: Asia/Tokyo
@@ -48,7 +59,7 @@ runcmd:
   # Install Docker
   - curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
   - sh /tmp/get-docker.sh
-  - usermod -aG docker YOUR_USERNAME_HERE  # TODO: This will be replaced automatically
+  - usermod -aG docker YOUR_USERNAME_HERE  # TODO: Replace with your username (same as users[0].name)
   - systemctl enable docker
   - systemctl start docker
 
@@ -63,7 +74,7 @@ runcmd:
 
   # Clone debug-probe-hub repository
   - git clone https://github.com/YOUR_GITHUB_USERNAME/debug-probe-hub.git /opt/debug-probe-hub  # TODO: Change GitHub username
-  - chown -R YOUR_USERNAME_HERE:YOUR_USERNAME_HERE /opt/debug-probe-hub
+  - chown -R YOUR_USERNAME_HERE:YOUR_USERNAME_HERE /opt/debug-probe-hub  # TODO: Replace with your username
 
   # Install systemd services (replace user placeholder)
   - sed 's/User=debug/User=YOUR_USERNAME_HERE/g; s/Group=debug/Group=YOUR_USERNAME_HERE/g' /opt/debug-probe-hub/deploy/systemd/debug-probe-hub-pre-setup.service > /etc/systemd/system/debug-probe-hub-pre-setup.service
@@ -115,5 +126,5 @@ final_message: |
      docker ps
      curl http://localhost:8080/status
 
-  See /opt/debug-probe-hub/deploy/README.md for detailed instructions.
+  See /opt/debug-probe-hub/docs/deploy.md for detailed instructions.
   ========================================

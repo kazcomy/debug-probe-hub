@@ -26,6 +26,11 @@ else
     echo "  pip3 install --break-system-packages pyyaml"
 fi
 
+# Generate per-probe docker-compose file
+echo ""
+echo "Generating docker-compose.probes.yml..."
+python3 generate_docker_compose_probes.py --output docker-compose.probes.yml
+
 # Generate udev rules
 echo ""
 echo "Generating udev rules..."
@@ -62,7 +67,7 @@ chmod +x probe_finder.py
 # Build Docker images
 echo ""
 echo "Building Docker images..."
-docker-compose build
+docker-compose -f docker-compose.probes.yml build
 
 echo ""
 echo "===================================="
@@ -71,7 +76,7 @@ echo "===================================="
 echo ""
 echo "Next steps:"
 echo "  1. Review and customize config.yml for your setup"
-echo "  2. Start containers: docker-compose up -d"
+echo "  2. Start containers: docker-compose -f docker-compose.probes.yml up -d"
 echo "  3. Start server: python3 server.py"
 echo "  4. Check probe status: curl http://localhost:8080/status"
 echo "  5. Search for probes: python3 probe_finder.py --interface jlink"

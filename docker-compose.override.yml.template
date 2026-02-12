@@ -6,8 +6,11 @@
 #
 #   2. Edit docker-compose.override.yml and replace placeholders with your credentials
 #
-#   3. Build normally (docker-compose automatically uses override files):
-#      docker-compose build debug-box-wch
+#   3. Generate and build:
+#      python3 generate_docker_compose_probes.py --output docker-compose.probes.yml
+#      docker-compose -f docker-compose.probes.yml build
+#
+# The generator reads this override file and applies build args to generated services.
 #
 # Note: docker-compose.override.yml is gitignored and will not be committed
 

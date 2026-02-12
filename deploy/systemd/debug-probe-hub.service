@@ -7,19 +7,20 @@ Requires=docker.service debug-probe-hub-setup.service
 
 [Service]
 Type=simple
-User=kazcomy
-Group=kazcomy
+User=debug
+Group=debug
 WorkingDirectory=/opt/debug-probe-hub
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Ensure Docker containers are running
-ExecStartPre=/usr/bin/docker-compose up -d
+ExecStartPre=/usr/bin/python3 /opt/debug-probe-hub/generate_docker_compose_probes.py --output /opt/debug-probe-hub/docker-compose.probes.yml
+ExecStartPre=/usr/bin/docker-compose -f /opt/debug-probe-hub/docker-compose.probes.yml up -d
 
 # Start the HTTP server
 ExecStart=/usr/bin/python3 /opt/debug-probe-hub/server.py
 
 # Stop containers on service stop
-ExecStop=/usr/bin/docker-compose down
+ExecStop=/usr/bin/docker-compose -f /opt/debug-probe-hub/docker-compose.probes.yml down
 
 # Restart policy - only restart on failure, not during setup issues
 Restart=on-failure

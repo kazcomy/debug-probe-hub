@@ -6,6 +6,8 @@ Executes debug or flash commands based on configuration
 import sys
 import subprocess
 import fcntl
+import os
+import time
 from pathlib import Path
 from config_loader import get_config
 
@@ -36,6 +38,88 @@ def get_rtt_port(probe_id):
     """Calculate RTT/print port for probe"""
     config = get_config()
     return config.rtt_base_port + probe_id
+
+def probe_session_patterns(probe_id, mode):
+    """Get process patterns that indicate an active probe session."""
+    gdb_port = get_gdb_port(probe_id)
+    rtt_port = get_rtt_port(probe_id)
+
+    if mode == "debug":
+        return [
+            f"gdb_port {gdb_port}",
+            f"-port {gdb_port}",
+            f":{gdb_port}",
+        ]
+    if mode == "print":
+        return [
+            f"RTTTelnetPort {rtt_port}",
+            f"TCP-LISTEN:{rtt_port}",
+            f":{rtt_port}",
+        ]
+    return []
+
+def has_active_session(container_name, probe_id, mode):
+    """Check whether probe session process is still active in container."""
+    patterns = probe_session_patterns(probe_id, mode)
+    for pattern in patterns:
+        result = subprocess.run(
+            ["docker", "exec", container_name, "pgrep", "-f", pattern],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        if result.returncode == 0:
+            return True
+    return False
+
+def run_lock_monitor(lock_fd, container_name, probe_id, mode):
+    """Keep lock held while debug/print session is active."""
+    lock_file = os.fdopen(lock_fd, 'w')
+    startup_grace_seconds = 10
+    poll_interval_seconds = 1
+    max_miss_count = 3
+
+    seen_active = False
+    miss_count = 0
+    started_at = time.time()
+
+    try:
+        while True:
+            active = has_active_session(container_name, probe_id, mode)
+            if active:
+                seen_active = True
+                miss_count = 0
+            else:
+                if (not seen_active) and (time.time() - started_at < startup_grace_seconds):
+                    time.sleep(poll_interval_seconds)
+                    continue
+
+                miss_count += 1
+                if miss_count >= max_miss_count:
+                    break
+
+            time.sleep(poll_interval_seconds)
+    finally:
+        lock_file.close()
+
+def start_lock_monitor(lock_file, container_name, probe_id, mode):
+    """Spawn background monitor process that inherits the lock FD."""
+    lock_fd = lock_file.fileno()
+    script_path = Path(__file__).resolve()
+    subprocess.Popen(
+        [
+            sys.executable,
+            str(script_path),
+            "--lock-monitor",
+            str(lock_fd),
+            container_name,
+            str(probe_id),
+            mode,
+        ],
+        pass_fds=[lock_fd],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
 
 def cleanup_existing_processes(container_name, probe_id, interface):
     """Kill existing debug server processes"""
@@ -124,7 +208,23 @@ done
         print(result.stderr, file=sys.stderr)
         return result
 
+def maybe_run_lock_monitor():
+    """Internal entrypoint for lock monitor subprocess."""
+    if len(sys.argv) >= 2 and sys.argv[1] == "--lock-monitor":
+        if len(sys.argv) != 6:
+            print("Usage: debug_dispatcher.py --lock-monitor <lock_fd> <container> <probe_id> <mode>", file=sys.stderr)
+            sys.exit(2)
+
+        lock_fd = int(sys.argv[2])
+        container_name = sys.argv[3]
+        probe_id = int(sys.argv[4])
+        mode = sys.argv[5]
+        run_lock_monitor(lock_fd, container_name, probe_id, mode)
+        sys.exit(0)
+
 def main():
+    maybe_run_lock_monitor()
+
     if len(sys.argv) < 4:
         print("Usage: debug_dispatcher.py <target> <probe_id> <mode> [firmware_file]", file=sys.stderr)
         sys.exit(1)
@@ -157,14 +257,17 @@ def main():
         print(f"Error: Probe {probe_id} is not compatible with target {target_name}", file=sys.stderr)
         sys.exit(1)
 
-    # Get container
-    container_name = config.get_container_for_target(target_name)
-    if not container_name:
+    # Get base container for target and resolve per-probe container instance.
+    # We run one container instance per (toolchain container) x (probe_id).
+    base_container_name = config.get_container_for_target(target_name)
+    if not base_container_name:
         print(f"Error: No container configured for target {target_name}", file=sys.stderr)
         sys.exit(1)
+    container_name = f"{base_container_name}-p{probe_id}"
 
     # Acquire lock
     lock_file = acquire_lock(probe_id)
+    lock_transferred = False
 
     try:
         # Get command template
@@ -202,12 +305,16 @@ def main():
 
         # Execute command
         result = execute_command(container_name, command, mode, probe_id)
+        if mode in ["debug", "print"] and result.returncode == 0:
+            start_lock_monitor(lock_file, container_name, probe_id, mode)
+            lock_transferred = True
 
         sys.exit(result.returncode)
 
     finally:
-        # Release lock
-        fcntl.flock(lock_file, fcntl.LOCK_UN)
+        # Release lock unless it was transferred to monitor process.
+        if not lock_transferred:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
         lock_file.close()
 
 if __name__ == '__main__':

@@ -7,8 +7,8 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-User=kazcomy
-Group=kazcomy
+User=debug
+Group=debug
 WorkingDirectory=/opt/debug-probe-hub
 Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
@@ -25,6 +25,9 @@ ExecStart=/bin/bash -c "sudo udevadm trigger"
 
 # Create upload directory
 ExecStart=/bin/bash -c "sudo mkdir -p /tmp/flash_staging && sudo chmod 777 /tmp/flash_staging"
+
+# Generate per-probe docker-compose file
+ExecStart=/usr/bin/python3 /opt/debug-probe-hub/generate_docker_compose_probes.py --output /opt/debug-probe-hub/docker-compose.probes.yml
 
 # Make scripts executable
 ExecStart=/bin/bash -c "chmod +x /opt/debug-probe-hub/*.py"

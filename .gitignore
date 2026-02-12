@@ -21,6 +21,7 @@ deploy/*.tfvars
 
 # Docker secrets and credentials
 docker-compose.override.yml
+docker-compose.probes.yml
 .git-token
 .github-token
 *.secret
