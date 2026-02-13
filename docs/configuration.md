@@ -6,7 +6,7 @@ Main file: `config.yml`
 
 - `containers`: toolchain definitions (image name and build context)
 - `probes`: physical debug probes (id, serial, interface, VID/PID)
-- `targets`: target definitions (container or per-interface container map, compatible interfaces, command templates)
+- `targets`: target definitions (container mapping, compatible interfaces, transport policy, command templates)
 - `ports`: base ports for GDB/Telnet/RTT allocation
 
 ## Add a new probe
@@ -53,13 +53,20 @@ targets:
       cmsis-dap: cmsis_dap
     description: "My Custom MCU"
     compatible_probes: [jlink, cmsis-dap]
+    transports:
+      jlink:
+        default: swd
+        allowed: [swd, jtag]
+      cmsis-dap:
+        default: swd
+        allowed: [swd]
     commands:
       jlink:
-        debug: "JLinkGDBServer -device MyMCU -if SWD -port {gdb_port} -select USB={serial}"
-        flash: "JLinkExe -CommandFile /tmp/flash_my_mcu.jlink"
+        debug: "openocd -f interface/jlink.cfg -c 'transport select {transport}' -f target/mymcu.cfg -c 'jlink serial {serial}' -c 'gdb_port {gdb_port}'"
+        flash: "openocd -f interface/jlink.cfg -c 'transport select {transport}' -f target/mymcu.cfg -c 'jlink serial {serial}' -c 'program {firmware_path} verify reset exit'"
       cmsis-dap:
-        debug: "openocd -f interface/cmsis-dap.cfg -f target/mymcu.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}'"
-        flash: "openocd -f interface/cmsis-dap.cfg -f target/mymcu.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
+        debug: "openocd -f interface/cmsis-dap.cfg -c 'transport select {transport}' -f target/mymcu.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}'"
+        flash: "openocd -f interface/cmsis-dap.cfg -c 'transport select {transport}' -f target/mymcu.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
 ```
 
 ## Add a new interface type and toolchain container
@@ -83,12 +90,15 @@ python3 generate_docker_compose_probes.py --output docker-compose.probes.yml
 - `{print_port}`
 - `{firmware_path}`
 - `{device_path}` (for serial-style devices where used)
+- `{transport}` (if you want client-selected SWD/JTAG/etc)
 
 ## ID and concurrency notes
 
 - `probe.id` should be unique integer.
 - Locking is based on `probe.id` (`/var/lock/probe_{id}.lock`).
 - Routing is based on target compatibility + probe interface + serial-aware command templates.
+- Transport is resolved per target/interface using `targets.<target>.transports.<interface>`.
+- Client-specified `transport` is validated against `targets.<target>.transports.<interface>.allowed`.
 - Container name used at runtime is `${containers.<key>.name}-p<probe_id>` (example: `debug-box-jlink-p1`).
 - Compose generation creates only compatible `(container, probe)` pairs derived from `targets.*.container` and `targets.*.compatible_probes`.
 - Runtime containers are started lazily on first `/dispatch`.

@@ -88,6 +88,106 @@ class Config:
         interface_commands = commands.get(interface, {})
         return interface_commands.get(mode)
 
+    def get_transport_config(self, target_name: str, interface: str) -> Dict:
+        """Get transport policy for target/interface pair."""
+        target = self.get_target(target_name)
+        if not target:
+            return {}
+
+        transports = target.get('transports', {})
+        if not isinstance(transports, dict):
+            return {}
+
+        cfg = transports.get(interface, {})
+        if isinstance(cfg, str):
+            normalized = cfg.strip().lower()
+            if not normalized:
+                return {}
+            return {"default": normalized, "allowed": [normalized]}
+
+        if not isinstance(cfg, dict):
+            return {}
+
+        default_transport = cfg.get("default")
+        if isinstance(default_transport, str):
+            default_transport = default_transport.strip().lower()
+        else:
+            default_transport = None
+
+        allowed = []
+        raw_allowed = cfg.get("allowed", [])
+        if isinstance(raw_allowed, list):
+            for t in raw_allowed:
+                if isinstance(t, str):
+                    normalized = t.strip().lower()
+                    if normalized:
+                        allowed.append(normalized)
+
+        if default_transport and default_transport not in allowed:
+            allowed.insert(0, default_transport)
+
+        return {
+            "default": default_transport,
+            "allowed": allowed,
+        }
+
+    def get_allowed_transports(self, target_name: str, interface: str) -> List[str]:
+        """Get allowed transports for target/interface pair."""
+        cfg = self.get_transport_config(target_name, interface)
+        return cfg.get("allowed", [])
+
+    def get_default_transport(self, target_name: str, interface: str) -> Optional[str]:
+        """Get default transport for target/interface pair."""
+        cfg = self.get_transport_config(target_name, interface)
+        default_transport = cfg.get("default")
+        if default_transport:
+            return default_transport
+
+        allowed = cfg.get("allowed", [])
+        if allowed:
+            return allowed[0]
+        return None
+
+    def resolve_transport(
+        self,
+        target_name: str,
+        interface: str,
+        requested_transport: Optional[str],
+        mode: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        Resolve transport from user request and target policy.
+
+        Raises:
+            ValueError: If requested transport is not allowed.
+        """
+        if mode == "print":
+            return None
+
+        requested = None
+        if isinstance(requested_transport, str):
+            requested = requested_transport.strip().lower() or None
+
+        allowed = self.get_allowed_transports(target_name, interface)
+        default_transport = self.get_default_transport(target_name, interface)
+
+        if requested:
+            if not allowed:
+                raise ValueError(
+                    f"Transport '{requested}' was requested for target={target_name}, "
+                    f"interface={interface}, but no transport policy is configured."
+                )
+            if requested not in allowed:
+                raise ValueError(
+                    f"Transport '{requested}' is not allowed for target={target_name}, "
+                    f"interface={interface}. Allowed: {allowed}"
+                )
+            return requested
+
+        if default_transport:
+            return default_transport
+        return None
+
     def format_command(self, command_template: str, **kwargs) -> str:
         """
         Format command template with provided arguments

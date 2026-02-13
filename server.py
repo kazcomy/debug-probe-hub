@@ -74,10 +74,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             targets = {}
             for name, target_config in config.get_all_targets().items():
+                compatible_probes = target_config.get("compatible_probes", [])
+                transports = {}
+                for interface in compatible_probes:
+                    transports[interface] = {
+                        "default": config.get_default_transport(name, interface),
+                        "allowed": config.get_allowed_transports(name, interface),
+                    }
                 targets[name] = {
                     "description": target_config.get("description", ""),
-                    "compatible_probes": target_config.get("compatible_probes", []),
-                    "container": target_config.get("container", "")
+                    "compatible_probes": compatible_probes,
+                    "compatible_interfaces": compatible_probes,
+                    "container": target_config.get("container", ""),
+                    "transports": transports,
                 }
             self._send_json(200, {"targets": targets})
         except Exception as e:
@@ -133,6 +142,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             target = form_data.get("target")
             probe_id = form_data.get("probe")
             mode = form_data.get("mode")
+            transport = form_data.get("transport")
 
             if not all([target, probe_id, mode]):
                 raise ValueError("Missing required fields: target, probe, mode")
@@ -146,11 +156,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not config.get_target(target):
                 raise ValueError(f"Unknown target: {target}")
 
-            if not config.get_probe(probe_id):
+            probe = config.get_probe(probe_id)
+            if not probe:
                 raise ValueError(f"Unknown probe ID: {probe_id}")
 
             if not config.is_probe_compatible(target, probe_id):
                 raise ValueError(f"Probe {probe_id} is not compatible with target {target}")
+
+            interface = probe.get("interface", "")
+            try:
+                resolved_transport = config.resolve_transport(
+                    target_name=target,
+                    interface=interface,
+                    requested_transport=transport,
+                    mode=mode,
+                )
+            except ValueError as e:
+                raise ValueError(str(e))
 
             # Save firmware file if provided
             firmware_path = None
@@ -168,7 +190,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 target,
                 str(probe_id),
                 mode,
-                filename if firmware_path else ""
+                filename if firmware_path else "",
+                resolved_transport or "",
             ]
 
             print(f"[DEBUG] Executing: {' '.join(cmd)}", file=sys.stderr)

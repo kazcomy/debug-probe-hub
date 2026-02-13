@@ -42,6 +42,7 @@ curl "http://<debug-hub-host>:8080/probes/search?interface=cmsis-dap&serial=C242
 ### `GET /targets`
 
 List supported targets.
+Each target includes compatible probe interfaces and transport policy (`default`/`allowed`) per interface.
 
 ```bash
 curl http://<debug-hub-host>:8080/targets
@@ -53,6 +54,8 @@ Flash firmware or start debug/print mode.
 
 - Required form fields: `target`, `probe`, `mode`
 - `mode`: `flash`, `debug`, or `print`
+- Optional form field: `transport` (for example: `swd`, `jtag`)
+- If `transport` is provided, it must be allowed by `targets.<target>.transports.<interface>.allowed`.
 - For `flash`, attach firmware as `file=@...`
 - If the same `probe` already has an active `debug`/`print` session, dispatch returns busy until that session exits.
 
@@ -60,8 +63,9 @@ Flash:
 
 ```bash
 curl -X POST http://<debug-hub-host>:8080/dispatch \
-  -F "target=nrf52840" \
+  -F "target=stm32g4" \
   -F "probe=1" \
+  -F "transport=swd" \
   -F "mode=flash" \
   -F "file=@firmware.hex"
 ```
@@ -70,8 +74,9 @@ Debug:
 
 ```bash
 curl -X POST http://<debug-hub-host>:8080/dispatch \
-  -F "target=nrf52840" \
+  -F "target=stm32g4" \
   -F "probe=1" \
+  -F "transport=jtag" \
   -F "mode=debug"
 ```
 
