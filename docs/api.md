@@ -80,6 +80,11 @@ curl -X POST http://<debug-hub-host>:8080/dispatch \
   -F "mode=debug"
 ```
 
+When `mode=debug` succeeds, connect your GDB client directly to:
+
+- `<debug-hub-host>:(ports.gdb_base + probe_id)`
+- Example: `gdb_base=3330`, `probe=1` -> `3331`
+
 Print (if target/interface supports it):
 
 ```bash
@@ -111,3 +116,28 @@ curl -X POST http://<debug-hub-host>:8080/dispatch \
   -F "probe=$PROBE_ID" \
   -F "mode=debug"
 ```
+
+## Debug quick start (LAN direct)
+
+1. Start debug session via `/dispatch` with `mode=debug`.
+2. Compute GDB endpoint as `<debug-hub-host>:(gdb_base + probe_id)`.
+3. Connect from your GDB client:
+
+```gdb
+target remote <debug-hub-host>:<gdb_port>
+monitor reset halt
+```
+
+Example (`gdb_base=3330`, `probe=1`):
+
+```gdb
+target remote remoteprogrammer.local.lan:3331
+```
+
+## Debug troubleshooting
+
+- Probe busy means another active `debug`/`print` session is holding the probe lock.
+- Target/transport mismatch can be checked via `GET /targets` (`allowed` transport list).
+- Server process check: `systemctl status debug-probe-hub`
+- Server logs: `journalctl -u debug-probe-hub -n 100`
+- Port reachability from client: `nc -vz <debug-hub-host> <gdb_port>`
