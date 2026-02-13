@@ -6,7 +6,7 @@ Main file: `config.yml`
 
 - `containers`: toolchain definitions (image name and build context)
 - `probes`: physical debug probes (id, serial, interface, VID/PID)
-- `targets`: target definitions (container, compatible interfaces, command templates)
+- `targets`: target definitions (container or per-interface container map, compatible interfaces, command templates)
 - `ports`: base ports for GDB/Telnet/RTT allocation
 
 ## Add a new probe
@@ -30,6 +30,10 @@ probes:
     interface: cmsis-dap
 ```
 
+Note:
+- `interface` must match `targets.<target>.compatible_probes` and `targets.<target>.commands.<interface>`.
+- Example: for ESP32-S3 built-in USB-JTAG, use `interface: esp-usb-jtag`.
+
 3. Regenerate udev rules:
 
 ```bash
@@ -44,7 +48,9 @@ sudo udevadm trigger
 ```yaml
 targets:
   my_mcu:
-    container: standard
+    container:
+      jlink: jlink
+      cmsis-dap: cmsis_dap
     description: "My Custom MCU"
     compatible_probes: [jlink, cmsis-dap]
     commands:
@@ -83,4 +89,6 @@ python3 generate_docker_compose_probes.py --output docker-compose.probes.yml
 - `probe.id` should be unique integer.
 - Locking is based on `probe.id` (`/var/lock/probe_{id}.lock`).
 - Routing is based on target compatibility + probe interface + serial-aware command templates.
-- Container name used at runtime is `${containers.<key>.name}-p<probe_id>` (example: `debug-box-std-p1`).
+- Container name used at runtime is `${containers.<key>.name}-p<probe_id>` (example: `debug-box-jlink-p1`).
+- Compose generation creates only compatible `(container, probe)` pairs derived from `targets.*.container` and `targets.*.compatible_probes`.
+- Runtime containers are started lazily on first `/dispatch`.

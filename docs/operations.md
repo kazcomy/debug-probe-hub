@@ -38,8 +38,14 @@ Manual:
 
 ```bash
 python3 generate_docker_compose_probes.py --output docker-compose.probes.yml
-docker-compose -f docker-compose.probes.yml up -d
 python3 server.py
+```
+
+Containers are started lazily on first `/dispatch` request.
+If you want to pre-warm all generated containers anyway:
+
+```bash
+docker-compose -f docker-compose.probes.yml up -d
 ```
 
 ## Update
@@ -67,6 +73,8 @@ Container/runtime:
 docker ps
 docker-compose -f docker-compose.probes.yml logs
 ```
+
+Note: with lazy start, `docker ps` may show no debug-box containers until first `/dispatch`.
 
 Probe visibility:
 

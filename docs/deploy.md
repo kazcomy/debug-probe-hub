@@ -116,6 +116,16 @@ docker ps
 curl http://localhost:8080/status
 ```
 
+Note:
+- Containers are started lazily on first `/dispatch`.
+- Right after boot, `docker ps` may show no debug-box containers yet.
+- If you want to pre-start generated containers manually:
+
+```bash
+cd /opt/debug-probe-hub
+docker-compose -f docker-compose.probes.yml up -d
+```
+
 ## 4. Re-deploy after config changes
 
 If you change `config.yml` after initial deployment, re-running only `debug-probe-hub` is not enough.

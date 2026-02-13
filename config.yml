@@ -7,11 +7,17 @@ server:
 
 # Container definitions
 containers:
-  standard:
-    name: debug-box-std
-    image_name: debug-probe-hub-std
-    build_context: ./docker/standard
-    description: "Standard ARM tools (OpenOCD, J-Link)"
+  jlink:
+    name: debug-box-jlink
+    image_name: debug-probe-hub-jlink
+    build_context: ./docker/general
+    description: "ARM tools for J-Link"
+
+  cmsis_dap:
+    name: debug-box-cmsisdap
+    image_name: debug-probe-hub-cmsisdap
+    build_context: ./docker/general
+    description: "ARM tools for CMSIS-DAP"
 
   esp32:
     name: debug-box-esp
@@ -58,7 +64,9 @@ probes:
 # Target device definitions
 targets:
   nrf52840:
-    container: standard
+    container:
+      jlink: jlink
+      cmsis-dap: cmsis_dap
     description: "Nordic nRF52840"
     compatible_probes: [jlink, cmsis-dap]
     commands:
@@ -81,20 +89,20 @@ targets:
         flash: "openocd -f interface/cmsis-dap.cfg -f target/nrf52.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
 
   esp32s3:
-    container: esp32
+    container:
+      esp-usb-jtag: esp32
     description: "Espressif ESP32-S3"
-    compatible_probes: [jlink, cmsis-dap]
+    compatible_probes: [esp-usb-jtag]
     commands:
-      jlink: #ESP32 S3 is not officially supported by SEGGER - J-Link acts as CMSIS-DAP
-        debug: "openocd -f interface/cmsis-dap.cfg -c 'cmsis-dap vid_pid 0x1366 0x0105' -c 'transport select jtag' -c 'adapter serial {serial}' -f target/esp32s3.cfg -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
-        flash: "openocd -f interface/cmsis-dap.cfg -c 'cmsis-dap vid_pid 0x1366 0x0105' -c 'transport select jtag' -c 'adapter serial {serial}' -f target/esp32s3.cfg -c 'program_esp {firmware_path} 0x0 verify reset exit'"
-      cmsis-dap:
-        debug: "openocd -f interface/cmsis-dap.cfg -c 'transport select jtag' -c 'adapter serial {serial}' -f target/esp32s3.cfg -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
-        flash: "openocd -f interface/cmsis-dap.cfg -c 'transport select jtag' -c 'adapter serial {serial}' -f target/esp32s3.cfg -c 'program_esp {firmware_path} 0x0 verify reset exit'"
+      esp-usb-jtag:
+        debug: "openocd -f interface/esp_usb_jtag.cfg -f target/esp32s3.cfg -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f interface/esp_usb_jtag.cfg -f target/esp32s3.cfg -c 'program_esp {firmware_path} 0x0 verify reset exit'"
 
-  stm32g3:
-    container: standard
-    description: "STM32G3 series"
+  stm32g4:
+    container:
+      jlink: jlink
+      cmsis-dap: cmsis_dap
+    description: "STM32G4 series"
     compatible_probes: [jlink, cmsis-dap]
     commands:
       jlink:

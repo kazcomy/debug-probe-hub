@@ -39,8 +39,8 @@ C4Component
             Component(api, "Hub API Server", "REST/HTTP", "/dispatch endpoint")
             
             Boundary(containers, "Debug Box Containers") {
-                Component(cstd1, "debug-box-std-p1", "Container", "J-Link logic")
-                Component(cstd3, "debug-box-std-p3", "Container", "CMSIS-DAP logic")
+                Component(cjlink1, "debug-box-jlink-p1", "Container", "J-Link logic")
+                Component(ccmsis3, "debug-box-cmsisdap-p3", "Container", "CMSIS-DAP logic")
                 Component(cwch2, "debug-box-wch-p2", "Container", "WCH-Link logic")
                 Component(cwch4, "debug-box-wch-p4", "Container", "WCH-Link logic")
             }
@@ -57,13 +57,13 @@ C4Component
     Rel(vscode, devsrv, "SSH / Remote Dev", "TCP/22")
     Rel(devsrv, api, "HTTP Request", "JSON/REST")
     
-    Rel(api, cstd1, "Internal Routing")
-    Rel(api, cstd3, "Internal Routing")
+    Rel(api, cjlink1, "Internal Routing")
+    Rel(api, ccmsis3, "Internal Routing")
     Rel(api, cwch2, "Internal Routing")
     Rel(api, cwch4, "Internal Routing")
 
-    Rel(cstd1, j1, "USB Passthrough")
-    Rel(cstd3, d1, "USB Passthrough")
+    Rel(cjlink1, j1, "USB Passthrough")
+    Rel(ccmsis3, d1, "USB Passthrough")
     Rel(cwch2, w1, "USB Passthrough")
     Rel(cwch4, w2, "USB Passthrough")
     
@@ -72,8 +72,9 @@ C4Component
 
 ## USB and Container Model
 
-- One image per toolchain, one container per `probe_id` (example: `debug-box-std-p1`).
-- Probe routing is done by `probe_id` + `serial` and each probe gets its own container instance.
+- One image per toolchain, one container per compatible `(toolchain, probe_id)` pair (example: `debug-box-jlink-p1`, `debug-box-esp-p1`).
+- Probe routing is done by `probe_id` + `serial`, and only containers compatible with that probe interface are generated.
+- Containers are started lazily on first dispatch for that probe/container pair.
 - Probe-level lock files (`/var/lock/probe_{id}.lock`) serialize same-probe access while allowing parallel access to different probes.
 - Containers mount `/dev:/dev` with `privileged: true`, so any USB device passed from Proxmox into the Hub VM is visible to containers.
 

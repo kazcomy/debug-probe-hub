@@ -167,6 +167,49 @@ def cleanup_existing_processes(container_name, probe_id, interface):
             stderr=subprocess.DEVNULL
         )
 
+def run_compose(compose_args, **kwargs):
+    """Run docker compose command with docker-compose/docker compose fallback."""
+    candidates = [
+        ["docker-compose"],
+        ["docker", "compose"],
+    ]
+    for prefix in candidates:
+        try:
+            return subprocess.run(prefix + compose_args, **kwargs)
+        except FileNotFoundError:
+            continue
+    raise FileNotFoundError("docker-compose (or docker compose plugin) is not installed")
+
+def ensure_container_running(container_name):
+    """Start target container on demand if it is not running yet."""
+    compose_path = Path(__file__).resolve().parent / "docker-compose.probes.yml"
+    if not compose_path.exists():
+        print(
+            f"Error: Compose file not found: {compose_path}. "
+            "Run generate_docker_compose_probes.py first.",
+            file=sys.stderr,
+        )
+        return False
+
+    try:
+        result = run_compose(
+            ["-f", str(compose_path), "up", "-d", container_name],
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return False
+
+    if result.returncode != 0:
+        print(
+            f"Error: Failed to start container {container_name}:\n"
+            f"{result.stdout}{result.stderr}",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
 def execute_command(container_name, command, mode, probe_id=None):
     """Execute command in Docker container"""
     if mode == "print":
@@ -257,11 +300,16 @@ def main():
         print(f"Error: Probe {probe_id} is not compatible with target {target_name}", file=sys.stderr)
         sys.exit(1)
 
+    interface = probe['interface']
+
     # Get base container for target and resolve per-probe container instance.
     # We run one container instance per (toolchain container) x (probe_id).
-    base_container_name = config.get_container_for_target(target_name)
+    base_container_name = config.get_container_for_target(target_name, interface=interface)
     if not base_container_name:
-        print(f"Error: No container configured for target {target_name}", file=sys.stderr)
+        print(
+            f"Error: No container configured for target {target_name} (interface={interface})",
+            file=sys.stderr,
+        )
         sys.exit(1)
     container_name = f"{base_container_name}-p{probe_id}"
 
@@ -270,8 +318,10 @@ def main():
     lock_transferred = False
 
     try:
+        if not ensure_container_running(container_name):
+            sys.exit(1)
+
         # Get command template
-        interface = probe['interface']
         command_template = config.get_command(target_name, interface, mode)
 
         if not command_template:

@@ -1,13 +1,13 @@
 version: '3.8'
 
 services:
-  # Standard ARM tools container (OpenOCD, J-Link)
-  debug-box-std:
+  # General ARM tools container (OpenOCD, J-Link)
+  debug-box-general:
     build:
-      context: ./docker/standard
+      context: ./docker/general
       dockerfile: Dockerfile
-    image: debug-probe-hub-std:latest
-    container_name: debug-box-std
+    image: debug-probe-hub-general:latest
+    container_name: debug-box-general
     privileged: true
     volumes:
       - /dev:/dev

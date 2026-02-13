@@ -115,13 +115,18 @@ class Config:
         compatible_probes = target.get('compatible_probes', [])
         return probe_interface in compatible_probes
 
-    def get_container_for_target(self, target_name: str) -> Optional[str]:
-        """Get the container name for a target"""
+    def get_container_for_target(self, target_name: str, interface: str = None) -> Optional[str]:
+        """Get the container name for a target (optionally resolved per interface)."""
         target = self.get_target(target_name)
         if not target:
             return None
 
         container_key = target.get('container')
+        if isinstance(container_key, dict):
+            if interface is None:
+                return None
+            container_key = container_key.get(interface)
+
         container = self.get_container(container_key)
         if not container:
             return None

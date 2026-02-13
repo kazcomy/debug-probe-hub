@@ -13,9 +13,9 @@ flowchart TB
         API[server.py\n/status /probes/search /dispatch]
         DISP[debug_dispatcher.py\nrouting + lock + docker exec]
 
-        subgraph CSet["Per-Probe Containers (same images, separate instances)"]
-            Cstd1[debug-box-std-p1]
-            Cstd2[debug-box-std-p2]
+        subgraph CSet["Per-(Toolchain, Probe) Containers (same images, separate instances)"]
+            Cjlink1[debug-box-jlink-p1]
+            Ccmsis3[debug-box-cmsisdap-p3]
             Cesp1[debug-box-esp-p1]
             Cwch4[debug-box-wch-p4]
         end
@@ -44,25 +44,26 @@ flowchart TB
     DISP --> L2
     DISP --> L3
     DISP --> L4
-    DISP --> Cstd1
-    DISP --> Cstd2
+    DISP --> Cjlink1
+    DISP --> Ccmsis3
     DISP --> Cesp1
     DISP --> Cwch4
 
-    Cstd1 -. "/dev" .-> P1
-    Cstd2 -. "/dev" .-> P2
-    Cesp1 -. "/dev" .-> P3
+    Cjlink1 -. "/dev" .-> P1
+    Ccmsis3 -. "/dev" .-> P3
+    Cesp1 -. "/dev" .-> P1
     Cwch4 -. "/dev" .-> P4
 ```
 
-## Why per-probe containers
+## Why per-(toolchain, probe) containers
 
-This project uses per-probe containers to avoid tool concurrency issues:
+This project uses per-(toolchain, probe) containers to avoid tool concurrency issues:
 
-- Still one image per toolchain, but multiple containers (one per `probe_id`).
+- Still one image per toolchain, but multiple containers (one per compatible `(toolchain, probe_id)` pair).
 - Prevents "cleanup kills other sessions" and helps with commercial tools that can't run concurrently in a shared environment.
 - Locking remains probe-specific (`/var/lock/probe_{id}.lock`).
 - For `debug` and `print`, a background lock monitor keeps the probe lock while session process is alive, preventing accidental same-probe replacement.
+- Containers are started lazily at dispatch time (`docker-compose up -d <container>`), so idle probes do not require pre-starting every container.
 
 ## Architecture decisions
 
@@ -86,13 +87,14 @@ Reasons it was rejected:
 - Hardware and maintenance cost scale linearly (hosts, power, storage, OS updates, monitoring).
 - Failure surface increases: more nodes mean more network and lifecycle drift issues.
 - Capacity becomes fragmented (idle probes on one host cannot be flexibly reused as easily).
-- For this use case, centralizing probes in one Hub VM with per-probe container instances gives enough operational separation at much lower cost.
+- For this use case, centralizing probes in one Hub VM with per-(toolchain, probe) container instances gives enough operational separation at much lower cost.
 
 ## Mapping rules
 
-- Target selects container via `targets.<target>.container` in `config.yml`.
+- Target selects container via `targets.<target>.container` in `config.yml` (string or per-interface map).
 - Probe compatibility is checked by `targets.<target>.compatible_probes`.
 - Actual command is selected by `targets.<target>.commands.<interface>.<mode>`.
+- Generated compose services are limited to compatible mappings derived from target container + compatible interfaces.
 
 ## Source references
 
