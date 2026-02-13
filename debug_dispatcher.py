@@ -8,8 +8,15 @@ import subprocess
 import fcntl
 import os
 import time
+import shutil
 from pathlib import Path
 from config_loader import get_config
+
+PROCESS_STARTUP_GRACE_SECONDS = 10
+FIRST_ATTACH_GRACE_SECONDS = 60
+POLL_INTERVAL_SECONDS = 1
+MAX_PROCESS_MISS_COUNT = 3
+
 
 def acquire_lock(probe_id):
     """Acquire exclusive lock for probe"""
@@ -63,7 +70,7 @@ def has_active_session(container_name, probe_id, mode):
     patterns = probe_session_patterns(probe_id, mode)
     for pattern in patterns:
         result = subprocess.run(
-            ["docker", "exec", container_name, "pgrep", "-f", pattern],
+            ["docker", "exec", container_name, "pgrep", "-f", "--", pattern],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
@@ -71,37 +78,115 @@ def has_active_session(container_name, probe_id, mode):
             return True
     return False
 
-def run_lock_monitor(lock_fd, container_name, probe_id, mode):
-    """Keep lock held while debug/print session is active."""
-    lock_file = os.fdopen(lock_fd, 'w')
-    startup_grace_seconds = 10
-    poll_interval_seconds = 1
-    max_miss_count = 3
+def monitor_log(probe_id, message):
+    """Append lock-monitor lifecycle logs per probe."""
+    ts = time.strftime("%Y-%m-%d %H:%M:%S")
+    line = f"[{ts}] {message}\n"
+    log_path = Path(f"/tmp/lock_monitor_probe_{probe_id}.log")
+    try:
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(line)
+    except Exception:
+        # Keep monitor robust even if logging fails.
+        pass
 
-    seen_active = False
+
+def count_gdb_clients(gdb_port):
+    """
+    Count established TCP clients to local GDB server port using `ss`.
+
+    Returns:
+        int: number of ESTABLISHED sessions
+        None: when `ss` is unavailable or check failed
+    """
+    if not shutil.which("ss"):
+        return None
+
+    try:
+        result = subprocess.run(
+            ["ss", "-H", "-tan", "state", "established", f"sport = :{gdb_port}"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+    except Exception:
+        return None
+
+    if result.returncode != 0 and not result.stdout.strip():
+        return 0
+
+    return len([line for line in result.stdout.splitlines() if line.strip()])
+
+
+def run_lock_monitor(lock_fd, container_name, probe_id, mode, interface):
+    """Keep lock held while session is active; debug mode is client-connection based."""
+    lock_file = os.fdopen(lock_fd, 'w')
+    seen_process = False
     miss_count = 0
     started_at = time.time()
+    gdb_port = get_gdb_port(probe_id)
+    saw_client = False
+    ss_available = bool(shutil.which("ss"))
+
+    if mode == "debug":
+        monitor_log(
+            probe_id,
+            f"startup: waiting for first GDB attach up to {FIRST_ATTACH_GRACE_SECONDS}s (container={container_name}, port={gdb_port})",
+        )
+        if not ss_available:
+            monitor_log(
+                probe_id,
+                "warning: `ss` not found; falling back to process-liveness mode (auto-disconnect cleanup disabled)",
+            )
 
     try:
         while True:
             active = has_active_session(container_name, probe_id, mode)
             if active:
-                seen_active = True
+                seen_process = True
                 miss_count = 0
             else:
-                if (not seen_active) and (time.time() - started_at < startup_grace_seconds):
-                    time.sleep(poll_interval_seconds)
+                if (not seen_process) and (time.time() - started_at < PROCESS_STARTUP_GRACE_SECONDS):
+                    time.sleep(POLL_INTERVAL_SECONDS)
                     continue
 
                 miss_count += 1
-                if miss_count >= max_miss_count:
+                if miss_count >= MAX_PROCESS_MISS_COUNT:
+                    monitor_log(probe_id, f"session process missing repeatedly; ending monitor (mode={mode})")
                     break
 
-            time.sleep(poll_interval_seconds)
+            if mode == "debug" and ss_available:
+                client_count = count_gdb_clients(gdb_port)
+                if client_count is None:
+                    ss_available = False
+                    monitor_log(
+                        probe_id,
+                        "warning: failed to read GDB client state via `ss`; falling back to process-liveness mode",
+                    )
+                elif client_count > 0:
+                    if not saw_client:
+                        saw_client = True
+                        monitor_log(probe_id, f"first GDB attach detected (clients={client_count})")
+                else:
+                    elapsed = time.time() - started_at
+                    if saw_client:
+                        monitor_log(probe_id, "GDB disconnect detected; stopping debug session")
+                        cleanup_existing_processes(container_name, probe_id, interface)
+                        break
+                    if elapsed >= FIRST_ATTACH_GRACE_SECONDS:
+                        monitor_log(
+                            probe_id,
+                            f"no GDB attach within {FIRST_ATTACH_GRACE_SECONDS}s; stopping debug session",
+                        )
+                        cleanup_existing_processes(container_name, probe_id, interface)
+                        break
+
+            time.sleep(POLL_INTERVAL_SECONDS)
     finally:
+        monitor_log(probe_id, "unlock complete; lock monitor exiting")
         lock_file.close()
 
-def start_lock_monitor(lock_file, container_name, probe_id, mode):
+def start_lock_monitor(lock_file, container_name, probe_id, mode, interface):
     """Spawn background monitor process that inherits the lock FD."""
     lock_fd = lock_file.fileno()
     script_path = Path(__file__).resolve()
@@ -114,6 +199,7 @@ def start_lock_monitor(lock_file, container_name, probe_id, mode):
             container_name,
             str(probe_id),
             mode,
+            interface,
         ],
         pass_fds=[lock_fd],
         stdout=subprocess.DEVNULL,
@@ -141,6 +227,14 @@ def cleanup_existing_processes(container_name, probe_id, interface):
         ["docker", "exec", container_name, "pkill", "-f", f"TCP-LISTEN:{rtt_port}"],
         stderr=subprocess.DEVNULL
     )
+    subprocess.run(
+        ["docker", "exec", container_name, "pkill", "-f", f"Starting print server (probe {probe_id})"],
+        stderr=subprocess.DEVNULL
+    )
+    subprocess.run(
+        ["docker", "exec", container_name, "pkill", "openocd"],
+        stderr=subprocess.DEVNULL
+    )
 
     # Kill interface-specific processes
     if interface == "jlink":
@@ -154,10 +248,6 @@ def cleanup_existing_processes(container_name, probe_id, interface):
         )
     elif interface == "wch-link":
         # Kill OpenOCD and wlink processes
-        subprocess.run(
-            ["docker", "exec", container_name, "pkill", "openocd"],
-            stderr=subprocess.DEVNULL
-        )
         subprocess.run(
             ["docker", "exec", container_name, "pkill", "wlink"],
             stderr=subprocess.DEVNULL
@@ -254,15 +344,19 @@ done
 def maybe_run_lock_monitor():
     """Internal entrypoint for lock monitor subprocess."""
     if len(sys.argv) >= 2 and sys.argv[1] == "--lock-monitor":
-        if len(sys.argv) != 6:
-            print("Usage: debug_dispatcher.py --lock-monitor <lock_fd> <container> <probe_id> <mode>", file=sys.stderr)
+        if len(sys.argv) != 7:
+            print(
+                "Usage: debug_dispatcher.py --lock-monitor <lock_fd> <container> <probe_id> <mode> <interface>",
+                file=sys.stderr,
+            )
             sys.exit(2)
 
         lock_fd = int(sys.argv[2])
         container_name = sys.argv[3]
         probe_id = int(sys.argv[4])
         mode = sys.argv[5]
-        run_lock_monitor(lock_fd, container_name, probe_id, mode)
+        interface = sys.argv[6]
+        run_lock_monitor(lock_fd, container_name, probe_id, mode, interface)
         sys.exit(0)
 
 def main():
@@ -373,7 +467,7 @@ def main():
         # Execute command
         result = execute_command(container_name, command, mode, probe_id)
         if mode in ["debug", "print"] and result.returncode == 0:
-            start_lock_monitor(lock_file, container_name, probe_id, mode)
+            start_lock_monitor(lock_file, container_name, probe_id, mode, interface)
             lock_transferred = True
 
         sys.exit(result.returncode)

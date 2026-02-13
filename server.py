@@ -11,6 +11,8 @@ import os
 import sys
 import cgi
 import io
+import fcntl
+import time
 from urllib.parse import urlparse
 from pathlib import Path
 from config_loader import get_config
@@ -47,6 +49,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         if parsed_path == '/dispatch':
             self._handle_dispatch()
+        elif parsed_path == '/session/stop':
+            self._handle_session_stop()
         else:
             self._send_error(404, "Not Found")
 
@@ -209,6 +213,145 @@ class Handler(http.server.BaseHTTPRequestHandler):
             traceback.print_exc(file=sys.stderr)
             self._send_json(500, {"status": "error", "error": str(e)})
 
+    def _list_probe_containers(self, probe_id: int):
+        """List candidate container names for a probe suffix and config-defined services."""
+        names = set()
+        suffix = f"-p{probe_id}"
+
+        # Prefer real container names from Docker.
+        docker_ps = subprocess.run(
+            ["docker", "ps", "-a", "--format", "{{.Names}}"],
+            capture_output=True,
+            text=True,
+        )
+        if docker_ps.returncode == 0:
+            for line in docker_ps.stdout.splitlines():
+                name = line.strip()
+                if name.endswith(suffix):
+                    names.add(name)
+
+        # Add config-derived names as fallback.
+        for container in config.get_all_containers().values():
+            base = container.get("name")
+            if base:
+                names.add(f"{base}{suffix}")
+
+        return sorted(names)
+
+    def _is_container_running(self, container_name: str) -> bool:
+        result = subprocess.run(
+            ["docker", "inspect", "-f", "{{.State.Running}}", container_name],
+            capture_output=True,
+            text=True,
+        )
+        return result.returncode == 0 and result.stdout.strip().lower() == "true"
+
+    def _pkill_pattern(self, container_name: str, pattern: str) -> None:
+        subprocess.run(
+            ["docker", "exec", container_name, "pkill", "-f", "--", pattern],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    def _stop_probe_processes(self, container_name: str, probe_id: int, kind: str) -> None:
+        gdb_port = config.gdb_base_port + probe_id
+        rtt_port = config.rtt_base_port + probe_id
+
+        if kind in ("debug", "all"):
+            for pattern in [
+                f"gdb_port {gdb_port}",
+                f"-port {gdb_port}",
+                f":{gdb_port}",
+                "JLinkGDBServer",
+                "openocd",
+            ]:
+                self._pkill_pattern(container_name, pattern)
+
+        if kind in ("print", "all"):
+            for pattern in [
+                f"RTTTelnetPort {rtt_port}",
+                f"TCP-LISTEN:{rtt_port}",
+                f":{rtt_port}",
+                f"Starting print server (probe {probe_id})",
+                "JLinkRTTClient",
+                "wlink",
+                "socat",
+            ]:
+                self._pkill_pattern(container_name, pattern)
+
+    def _wait_lock_release(self, probe_id: int, timeout_seconds: float = 5.0, poll_seconds: float = 0.2) -> bool:
+        lock_path = Path(f"/var/lock/probe_{probe_id}.lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        deadline = time.time() + timeout_seconds
+
+        with open(lock_path, "w") as lock_file:
+            while time.time() < deadline:
+                try:
+                    fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    fcntl.flock(lock_file, fcntl.LOCK_UN)
+                    return True
+                except BlockingIOError:
+                    time.sleep(poll_seconds)
+
+        return False
+
+    def _handle_session_stop(self):
+        """Stop active debug/print session for a probe and wait lock release."""
+        logs = []
+        try:
+            content_type = self.headers.get("Content-Type")
+            if not content_type:
+                raise ValueError("Content-Type header missing")
+
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length)
+            form_data, _, _ = self._parse_multipart(content_type, body)
+
+            probe_raw = form_data.get("probe")
+            if not probe_raw:
+                raise ValueError("Missing required field: probe")
+
+            kind = (form_data.get("kind") or "all").strip().lower()
+            if kind not in {"debug", "print", "all"}:
+                raise ValueError("Invalid kind. Must be one of: debug, print, all")
+
+            probe_id = int(probe_raw)
+            probe = config.get_probe(probe_id)
+            if not probe:
+                raise ValueError(f"Unknown probe ID: {probe_id}")
+
+            logs.append(f"Target probe: {probe['name']} (ID: {probe_id})")
+            logs.append(f"Requested kind: {kind}")
+
+            container_names = self._list_probe_containers(probe_id)
+            if not container_names:
+                logs.append("No candidate containers found for this probe.")
+            else:
+                logs.append("Candidate containers: " + ", ".join(container_names))
+
+            for container_name in container_names:
+                if not self._is_container_running(container_name):
+                    logs.append(f"[SKIP] {container_name}: not running")
+                    continue
+
+                logs.append(f"[STOP] {container_name}: sending pkill patterns")
+                self._stop_probe_processes(container_name, probe_id, kind)
+
+            released = self._wait_lock_release(probe_id)
+            if released:
+                logs.append("Lock release confirmed (flock acquirable)")
+                self._send_json(200, {"status": "ok", "log": "\n".join(logs)})
+            else:
+                logs.append("Lock still held after timeout (5s)")
+                self._send_json(500, {"status": "error", "log": "\n".join(logs)})
+
+        except Exception as e:
+            print(f"[ERROR] Session stop failed: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            logs.append(f"Error: {e}")
+            self._send_json(500, {"status": "error", "log": "\n".join(logs), "error": str(e)})
+
     def _parse_multipart(self, content_type, body):
         """Parse multipart form data"""
         # Create file-like object from body
@@ -231,8 +374,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         # Extract form fields
         for key in form.keys():
             item = form[key]
-            if item.filename:  # File upload
-                filename = os.path.basename(item.filename)
+            item_filename = getattr(item, "filename", None)
+            if item_filename:  # File upload
+                filename = os.path.basename(item_filename)
                 file_data = item.file.read()
             else:  # Regular form field
                 form_data[key] = item.value

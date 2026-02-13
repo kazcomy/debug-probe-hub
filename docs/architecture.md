@@ -62,7 +62,8 @@ This project uses per-(toolchain, probe) containers to avoid tool concurrency is
 - Still one image per toolchain, but multiple containers (one per compatible `(toolchain, probe_id)` pair).
 - Prevents "cleanup kills other sessions" and helps with commercial tools that can't run concurrently in a shared environment.
 - Locking remains probe-specific (`/var/lock/probe_{id}.lock`).
-- For `debug` and `print`, a background lock monitor keeps the probe lock while session process is alive, preventing accidental same-probe replacement.
+- For `debug`, lock monitor is client-connection based: first attach must happen within 60s, and lock is released when clients disconnect.
+- For `print`, lock monitor keeps the probe lock while print session process is alive.
 - Containers are started lazily at dispatch time (`docker-compose up -d <container>`), so idle probes do not require pre-starting every container.
 
 ## Architecture decisions

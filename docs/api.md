@@ -94,6 +94,22 @@ curl -X POST http://<debug-hub-host>:8080/dispatch \
   -F "mode=print"
 ```
 
+### `POST /session/stop`
+
+Force-stop active session processes for a probe and wait for lock release.
+
+- Required form fields: `probe`
+- Optional form field: `kind` (`debug`, `print`, `all`; default: `all`)
+- Response includes `status` and `log`
+
+Example:
+
+```bash
+curl -X POST http://<debug-hub-host>:8080/session/stop \
+  -d "probe=1" \
+  -d "kind=all"
+```
+
 ## Common usage patterns
 
 ### Probe discovery then dispatch
@@ -134,10 +150,20 @@ Example (`gdb_base=3330`, `probe=1`):
 target remote remoteprogrammer.local.lan:3331
 ```
 
+## Debug session lifecycle
+
+- `mode=debug` starts a server process and holds probe lock.
+- First GDB client must attach within 60 seconds or session is auto-stopped.
+- Once attached, session is auto-stopped immediately when all GDB clients disconnect.
+- Reconnect after disconnect requires a new `/dispatch` request.
+- Manual recovery is available via `POST /session/stop`.
+
 ## Debug troubleshooting
 
 - Probe busy means another active `debug`/`print` session is holding the probe lock.
+- Run `POST /session/stop` for the probe before resorting to service restart.
 - Target/transport mismatch can be checked via `GET /targets` (`allowed` transport list).
 - Server process check: `systemctl status debug-probe-hub`
 - Server logs: `journalctl -u debug-probe-hub -n 100`
 - Port reachability from client: `nc -vz <debug-hub-host> <gdb_port>`
+- Note: `/var/lock/probe_<id>.lock` file may remain on disk; lock state is determined by `flock`, not file existence.
