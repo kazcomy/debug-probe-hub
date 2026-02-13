@@ -10,8 +10,16 @@ cd deploy
 cp cloud-init-user-data.template.yml cloud-init-user-data.yml
 cp cloud-init-network.template.yml cloud-init-network.yml
 ```
+Transfer cloud-init*.yml to "Snippets" on local storage of proxmox via GUI. 
+(You might be required to set some option to make "Snippets" visible)
+
 
 Edit both files and replace all placeholders.
+
+Authentication policy in this guide:
+- `cloud-init-user-data.yml` is SSH key-only (`ssh_pwauth: false`).
+- Do not set initial password in cloud-init (`chpasswd` is not used).
+- Set password manually after first SSH login.
 
 Sanity check:
 
@@ -27,14 +35,27 @@ Run on Proxmox host:
 VM_ID=100
 VM_NAME="debug-probe-hub"
 STORAGE="local-lvm"
-CLOUD_IMAGE="/var/lib/vz/template/iso/ubuntu-24.04-server-cloudimg-amd64.img"
+CLOUD_IMAGE="/var/lib/vz/template/iso/noble-server-cloudimg-amd64.img"
 
-qm create $VM_ID --name $VM_NAME --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0
-qm importdisk $VM_ID $CLOUD_IMAGE $STORAGE
-qm set $VM_ID --scsihw virtio-scsi-pci --scsi0 $STORAGE:vm-$VM_ID-disk-0
-qm resize $VM_ID scsi0 100G
-qm set $VM_ID --boot c --bootdisk scsi0
-qm set $VM_ID --ide2 $STORAGE:cloudinit
+test -f "$CLOUD_IMAGE"
+
+# VMが無ければ作る
+if ! qm config "$VM_ID" >/dev/null 2>&1; then
+  qm create "$VM_ID" --name "$VM_NAME" --memory 2048 --cores 2 --net0 virtio,bridge=vmbr0
+fi
+
+qm importdisk "$VM_ID" "$CLOUD_IMAGE" "$STORAGE"
+
+DISK_VOLID=$(qm config "$VM_ID" | awk -F': ' '/^unused[0-9]+:/{print $2; exit}' | cut -d, -f1)
+test -n "$DISK_VOLID"
+
+qm set "$VM_ID" --scsihw virtio-scsi-pci
+qm set "$VM_ID" --scsi0 "$DISK_VOLID"
+qm resize "$VM_ID" scsi0 32G
+qm set "$VM_ID" --boot order=scsi0
+qm set "$VM_ID" --ide2 "$STORAGE":cloudinit
+
+
 qm set $VM_ID --cicustom "user=local:snippets/cloud-init-user-data.yml,network=local:snippets/cloud-init-network.yml"
 qm cloudinit update $VM_ID
 ```
@@ -63,6 +84,14 @@ cloud-init status
 ```
 
 Expected: `status: done`
+
+Set local password (makepw) after first login:
+
+```bash
+sudo passwd YOUR_USERNAME
+```
+
+Note: This sets the user password on the VM, but SSH password login remains disabled by design (`ssh_pwauth: false`).
 
 Configure WCH private toolchain access:
 

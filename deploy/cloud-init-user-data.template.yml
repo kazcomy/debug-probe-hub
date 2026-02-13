@@ -10,9 +10,9 @@
 hostname: debug-probe-hub
 
 # SSH access
-# - Recommended: use SSH public keys.
-# - If you want to allow password login over SSH, enable `ssh_pwauth` and configure `chpasswd` below.
-ssh_pwauth: true  # TODO: Set false if you want SSH-key-only login
+# - This template is fixed to SSH key-only authentication.
+# - Password authentication over SSH is intentionally disabled.
+ssh_pwauth: false
 
 # Users TODO: Customize this section
 users:
@@ -20,18 +20,9 @@ users:
     groups: [sudo]
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
     shell: /bin/bash
-    lock_passwd: false
+    lock_passwd: true
     ssh_authorized_keys:
-      - YOUR_SSH_PUBLIC_KEY_HERE  # TODO: Add your SSH public key (optional)
-
-# Set an initial password (plaintext).
-# - SECURITY: Do not leave placeholders as-is.
-# - If you want SSH-key-only login, remove this block (and set `ssh_pwauth: false` above).
-# - If you prefer hashed passwords, remove this block and set `passwd` with a hash in the user entry instead.
-chpasswd:
-  expire: false
-  list: |
-    YOUR_USERNAME_HERE:YOUR_PASSWORD_HERE  # TODO: Change to your desired password
+      - YOUR_SSH_PUBLIC_KEY_HERE  # TODO: Add your SSH public key (required)
 
 # Timezone TODO: Change if needed
 timezone: Asia/Tokyo
@@ -108,21 +99,24 @@ final_message: |
 
   REQUIRED STEPS:
 
-  1. Configure WCH Toolchain Access:
+  1. Set local password after SSH login (makepw):
+     sudo passwd YOUR_USERNAME_HERE
+
+  2. Configure WCH Toolchain Access:
      cd /opt/debug-probe-hub
      cp docker-compose.override.yml.template docker-compose.override.yml
      nano docker-compose.override.yml
      # Add your GitHub token to WCH_TOOLCHAIN_URL
 
-  2. Build Docker Images (10-20 minutes):
+  3. Build Docker Images (10-20 minutes):
      sudo systemctl start debug-probe-hub-setup
      journalctl -u debug-probe-hub-setup -f
 
-  3. Start Debug Probe Hub:
+  4. Start Debug Probe Hub:
      sudo systemctl start debug-probe-hub
      systemctl status debug-probe-hub
 
-  4. Verify:
+  5. Verify:
      docker ps
      curl http://localhost:8080/status
 
