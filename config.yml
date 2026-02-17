@@ -40,25 +40,26 @@ probes:
     product_id: "0105"
     interface: jlink
 
+# if wch-link should be used in ARM mode, change product_id to 8012
   - id: 2
-    name: "WCH-Link (ARM #1)"
+    name: "WCH-Link (RISC-V #1)"
     serial: "C2428F064718"
     vendor_id: "1a86"
     product_id: "8010"
     interface: wch-link
 
   - id: 3
-    name: "WCH-Link (ARM #2)"
+    name: "WCH-Link (RISC-V #2)"
     serial: "03AF8F068882"
     vendor_id: "1a86"
     product_id: "8010"
-    interface: cmsis-dap
+    interface: wch-link
 
   - id: 4
-    name: "WCH-Link (RISC-V)"
+    name: "WCH-Link (RISC-V #3)"
     serial: "50CE8F06D5AF"
     vendor_id: "1a86"
-    product_id: "8012"
+    product_id: "8010"
     interface: wch-link
 
 # Target device definitions
