@@ -406,6 +406,14 @@ def main():
             requested_transport=requested_transport,
             mode=mode,
         )
+        config.validate_probe_transport(
+            target_name=target_name,
+            interface=interface,
+            probe=probe,
+            requested_transport=requested_transport,
+            resolved_transport=transport,
+            mode=mode,
+        )
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)

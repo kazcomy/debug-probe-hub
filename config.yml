@@ -137,12 +137,12 @@ targets:
     compatible_probes: [wch-link]
     transports:
       wch-link:
-        default: swd
-        allowed: [swd, jtag]
+        default: sdi
+        allowed: [sdi]
     commands:
       wch-link:
-        flash: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'transport select {transport}' -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
-        debug: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'transport select {transport}' -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
+        debug: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
         print: "wlink serial | socat STDIN TCP-LISTEN:{rtt_port},reuseaddr,fork,bind=0.0.0.0"
 
   ch32v203:
@@ -151,12 +151,12 @@ targets:
     compatible_probes: [wch-link]
     transports:
       wch-link:
-        default: swd
-        allowed: [swd, jtag]
+        default: sdi
+        allowed: [sdi]
     commands:
       wch-link:
-        flash: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'transport select {transport}' -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
-        debug: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'transport select {transport}' -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
+        debug: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
         print: "wlink serial | socat STDIN TCP-LISTEN:{rtt_port},reuseaddr,fork,bind=0.0.0.0"
 
 # Port allocation

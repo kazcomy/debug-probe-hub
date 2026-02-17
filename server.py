@@ -175,6 +175,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     requested_transport=transport,
                     mode=mode,
                 )
+                config.validate_probe_transport(
+                    target_name=target,
+                    interface=interface,
+                    probe=probe,
+                    requested_transport=transport,
+                    resolved_transport=resolved_transport,
+                    mode=mode,
+                )
             except ValueError as e:
                 raise ValueError(str(e))
 

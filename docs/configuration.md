@@ -78,13 +78,16 @@ targets:
     compatible_probes: [wch-link]
     transports:
       wch-link:
-        default: swd
-        allowed: [swd, jtag]
+        default: sdi
+        allowed: [sdi]
     commands:
       wch-link:
-        flash: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'transport select {transport}' -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
-        debug: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'transport select {transport}' -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
+        flash: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
+        debug: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
 ```
+
+For WCH RISC-V (`wch-riscv.cfg`), OpenOCD transport is effectively fixed to `sdi`.
+WCH-Link ARM mode (USB PID `8012`) is separate and typically uses `swd`/`jtag` in ARM target policies.
 
 ## Add a new interface type and toolchain container
 

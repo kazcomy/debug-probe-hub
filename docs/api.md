@@ -54,7 +54,7 @@ Flash firmware or start debug/print mode.
 
 - Required form fields: `target`, `probe`, `mode`
 - `mode`: `flash`, `debug`, or `print`
-- Optional form field: `transport` (for example: `swd`, `jtag`)
+- Optional form field: `transport` (for example: `swd`, `jtag`, `sdi`)
 - If `transport` is provided, it must be allowed by `targets.<target>.transports.<interface>.allowed`.
 - If `transport` is omitted, `targets.<target>.transports.<interface>.default` is used.
 - For `flash`, attach firmware as `file=@...`
@@ -87,10 +87,14 @@ WCH (CH32V, flash with explicit transport):
 curl -X POST http://<debug-hub-host>:8080/dispatch \
   -F "target=ch32v203" \
   -F "probe=4" \
-  -F "transport=swd" \
+  -F "transport=sdi" \
   -F "mode=flash" \
   -F "file=@firmware.elf"
 ```
+
+Note: WCH RISC-V backend (`wch-riscv.cfg`) auto-selects `sdi`.
+If a WCH-Link probe is in RISC-V mode (USB PID `8010`), only `transport=sdi` is valid.
+To use `swd`/`jtag`, switch probe mode to ARM (USB PID `8012`) and use an ARM target policy.
 
 When `mode=debug` succeeds, connect your GDB client directly to:
 
