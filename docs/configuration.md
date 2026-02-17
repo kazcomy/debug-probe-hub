@@ -69,6 +69,23 @@ targets:
         flash: "openocd -f interface/cmsis-dap.cfg -c 'transport select {transport}' -f target/mymcu.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
 ```
 
+WCH-Link target example:
+
+```yaml
+targets:
+  ch32v203:
+    container: wch
+    compatible_probes: [wch-link]
+    transports:
+      wch-link:
+        default: swd
+        allowed: [swd, jtag]
+    commands:
+      wch-link:
+        flash: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'transport select {transport}' -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
+        debug: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'transport select {transport}' -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
+```
+
 ## Add a new interface type and toolchain container
 
 1. Create a container image under `docker/<tool>/Dockerfile`.
@@ -99,6 +116,7 @@ python3 generate_docker_compose_probes.py --output docker-compose.probes.yml
 - Routing is based on target compatibility + probe interface + serial-aware command templates.
 - Transport is resolved per target/interface using `targets.<target>.transports.<interface>`.
 - Client-specified `transport` is validated against `targets.<target>.transports.<interface>.allowed`.
+- If client does not specify `transport`, `targets.<target>.transports.<interface>.default` is used.
 - Container name used at runtime is `${containers.<key>.name}-p<probe_id>` (example: `debug-box-jlink-p1`).
 - Compose generation creates only compatible `(container, probe)` pairs derived from `targets.*.container` and `targets.*.compatible_probes`.
 - Runtime containers are started lazily on first `/dispatch`.

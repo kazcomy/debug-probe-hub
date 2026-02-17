@@ -56,6 +56,7 @@ Flash firmware or start debug/print mode.
 - `mode`: `flash`, `debug`, or `print`
 - Optional form field: `transport` (for example: `swd`, `jtag`)
 - If `transport` is provided, it must be allowed by `targets.<target>.transports.<interface>.allowed`.
+- If `transport` is omitted, `targets.<target>.transports.<interface>.default` is used.
 - For `flash`, attach firmware as `file=@...`
 - If the same `probe` already has an active `debug`/`print` session, dispatch returns busy until that session exits.
 
@@ -78,6 +79,17 @@ curl -X POST http://<debug-hub-host>:8080/dispatch \
   -F "probe=1" \
   -F "transport=jtag" \
   -F "mode=debug"
+```
+
+WCH (CH32V, flash with explicit transport):
+
+```bash
+curl -X POST http://<debug-hub-host>:8080/dispatch \
+  -F "target=ch32v203" \
+  -F "probe=4" \
+  -F "transport=swd" \
+  -F "mode=flash" \
+  -F "file=@firmware.elf"
 ```
 
 When `mode=debug` succeeds, connect your GDB client directly to:
