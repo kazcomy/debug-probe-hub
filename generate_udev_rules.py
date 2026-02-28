@@ -21,6 +21,7 @@ def generate_udev_rules(config):
         vendor_id = probe['vendor_id']
         product_id = probe['product_id']
         serial = probe.get('serial', '')
+        interface = probe.get('interface', '')
 
         # Create rule with serial number match
         if serial:
@@ -45,6 +46,29 @@ def generate_udev_rules(config):
             )
 
         rules.append(rule)
+
+        # USB-UART probe also gets a stable TTY symlink.
+        if interface == "usb-uart":
+            if serial:
+                tty_rule = (
+                    f'# {name} (TTY)\n'
+                    f'SUBSYSTEM=="tty", '
+                    f'ATTRS{{idVendor}}=="{vendor_id}", '
+                    f'ATTRS{{idProduct}}=="{product_id}", '
+                    f'ATTRS{{serial}}=="{serial}", '
+                    f'MODE="0666", '
+                    f'SYMLINK+="probes/tty_probe_{probe_id}"\n'
+                )
+            else:
+                tty_rule = (
+                    f'# {name} (TTY)\n'
+                    f'SUBSYSTEM=="tty", '
+                    f'ATTRS{{idVendor}}=="{vendor_id}", '
+                    f'ATTRS{{idProduct}}=="{product_id}", '
+                    f'MODE="0666", '
+                    f'SYMLINK+="probes/tty_probe_{probe_id}"\n'
+                )
+            rules.append(tty_rule)
 
     return '\n'.join(rules)
 

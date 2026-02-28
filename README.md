@@ -74,6 +74,7 @@ C4Component
 
 - One image per toolchain, one container per compatible `(toolchain, probe_id)` pair (example: `debug-box-jlink-p1`, `debug-box-esp-p1`).
 - Probe routing is done by `probe_id` + `serial`, and only containers compatible with that probe interface are generated.
+- Compatibility can be mode-specific (`debug`/`flash`/`print`), so you can split debug and UART print across different probes.
 - Containers are started lazily on first dispatch for that probe/container pair.
 - Probe-level lock files (`/var/lock/probe_{id}.lock`) serialize same-probe access while allowing parallel access to different probes.
 - Containers mount `/dev:/dev` with `privileged: true`, so any USB device passed from Proxmox into the Hub VM is visible to containers.

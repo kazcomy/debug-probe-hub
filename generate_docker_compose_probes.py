@@ -49,7 +49,20 @@ def build_interface_container_map(targets: Dict[str, Any]) -> Dict[str, Set[str]
 
     for target in targets.values():
         container_cfg = target.get("container")
-        compatible_probes = target.get("compatible_probes", [])
+        compatible_cfg = target.get("compatible_probes", [])
+        compatible_probes: List[str] = []
+
+        if isinstance(compatible_cfg, list):
+            for interface in compatible_cfg:
+                if isinstance(interface, str) and interface not in compatible_probes:
+                    compatible_probes.append(interface)
+        elif isinstance(compatible_cfg, dict):
+            for interfaces in compatible_cfg.values():
+                if not isinstance(interfaces, list):
+                    continue
+                for interface in interfaces:
+                    if isinstance(interface, str) and interface not in compatible_probes:
+                        compatible_probes.append(interface)
 
         interface_container_map: Dict[str, str] = {}
         if isinstance(container_cfg, str):

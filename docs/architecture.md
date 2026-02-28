@@ -93,8 +93,8 @@ Reasons it was rejected:
 ## Mapping rules
 
 - Target selects container via `targets.<target>.container` in `config.yml` (string or per-interface map).
-- Probe compatibility is checked by `targets.<target>.compatible_probes`.
-- Actual command is selected by `targets.<target>.commands.<interface>.<mode>`.
+- Probe compatibility is checked by `targets.<target>.compatible_probes` (list or mode map).
+- Actual command is selected by `targets.<target>.commands.<interface>.<mode>` with `interface_defaults.<interface>.commands.<mode>` fallback.
 - Generated compose services are limited to compatible mappings derived from target container + compatible interfaces.
 
 ## Source references

@@ -16,6 +16,9 @@ PROCESS_STARTUP_GRACE_SECONDS = 10
 FIRST_ATTACH_GRACE_SECONDS = 60
 POLL_INTERVAL_SECONDS = 1
 MAX_PROCESS_MISS_COUNT = 3
+UART_BAUD_MIN = 300
+UART_BAUD_MAX = 3_000_000
+UART_BAUD_DEFAULT = 115200
 
 
 def acquire_lock(probe_id):
@@ -256,6 +259,11 @@ def cleanup_existing_processes(container_name, probe_id, interface):
             ["docker", "exec", container_name, "pkill", "socat"],
             stderr=subprocess.DEVNULL
         )
+    elif interface == "usb-uart":
+        subprocess.run(
+            ["docker", "exec", container_name, "pkill", "socat"],
+            stderr=subprocess.DEVNULL
+        )
 
 def run_compose(compose_args, **kwargs):
     """Run docker compose command with docker-compose/docker compose fallback."""
@@ -364,16 +372,17 @@ def main():
 
     if len(sys.argv) < 4:
         print(
-            "Usage: debug_dispatcher.py <target> <probe_id> <mode> [firmware_file] [transport]",
+            "Usage: debug_dispatcher.py <target> <probe_id> <mode> [firmware_file] [transport] [uart_baud]",
             file=sys.stderr,
         )
         sys.exit(1)
 
     target_name = sys.argv[1]
     probe_id = int(sys.argv[2])
-    mode = sys.argv[3]
+    mode = sys.argv[3].strip().lower()
     firmware_file = sys.argv[4] if len(sys.argv) > 4 else ""
     requested_transport = sys.argv[5] if len(sys.argv) > 5 else ""
+    uart_baud_raw = sys.argv[6] if len(sys.argv) > 6 else ""
 
     if mode not in ["debug", "flash", "print"]:
         print(f"Error: Invalid mode '{mode}'. Must be 'debug', 'flash', or 'print'", file=sys.stderr)
@@ -394,9 +403,27 @@ def main():
         sys.exit(1)
 
     # Check compatibility
-    if not config.is_probe_compatible(target_name, probe_id):
-        print(f"Error: Probe {probe_id} is not compatible with target {target_name}", file=sys.stderr)
+    if not config.is_probe_compatible(target_name, probe_id, mode=mode):
+        print(
+            f"Error: Probe {probe_id} is not compatible with target {target_name} in mode={mode}",
+            file=sys.stderr,
+        )
         sys.exit(1)
+
+    uart_baud = UART_BAUD_DEFAULT
+    if mode == "print" and uart_baud_raw:
+        try:
+            uart_baud = int(uart_baud_raw)
+        except ValueError:
+            print("Error: Invalid uart_baud. Must be an integer.", file=sys.stderr)
+            sys.exit(1)
+
+        if uart_baud < UART_BAUD_MIN or uart_baud > UART_BAUD_MAX:
+            print(
+                f"Error: Invalid uart_baud. Must be between {UART_BAUD_MIN} and {UART_BAUD_MAX}.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     interface = probe['interface']
     try:
@@ -450,12 +477,13 @@ def main():
 
         command = config.format_command(
             command_template,
-            serial=probe['serial'],
+            serial=probe.get('serial', ''),
             gdb_port=get_gdb_port(probe_id),
             telnet_port=get_telnet_port(probe_id),
             rtt_port=get_rtt_port(probe_id),
             print_port=get_rtt_port(probe_id),
             transport=transport or "",
+            uart_baud=uart_baud,
             device_path=device_path,
             firmware_path=firmware_path
         )

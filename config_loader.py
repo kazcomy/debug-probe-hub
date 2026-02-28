@@ -50,7 +50,14 @@ class Config:
         probe = self.get_probe(probe_id)
         if not probe:
             return None
-        return probe.get('device_path')
+        device_path = probe.get('device_path')
+        if device_path:
+            return device_path
+
+        if probe.get("interface") == "usb-uart":
+            return f"/dev/probes/tty_probe_{probe_id}"
+
+        return None
 
     def get_target(self, target_name: str) -> Optional[Dict]:
         """Get target configuration by name"""
@@ -68,6 +75,72 @@ class Config:
         """Get all container configurations"""
         return self.data['containers']
 
+    def _normalize_interface_list(self, value) -> List[str]:
+        """Normalize an interface list from config into a deduplicated list."""
+        if isinstance(value, str):
+            value = [value]
+        if not isinstance(value, list):
+            return []
+
+        normalized = []
+        for item in value:
+            if not isinstance(item, str):
+                continue
+            interface = item.strip()
+            if not interface or interface in normalized:
+                continue
+            normalized.append(interface)
+        return normalized
+
+    def get_compatible_probes_by_mode(self, target_name: str) -> Dict[str, List[str]]:
+        """
+        Get compatible probe interfaces grouped by mode.
+
+        Supports both:
+        - legacy list format: compatible_probes: [jlink, cmsis-dap]
+        - mode map format:
+            compatible_probes:
+              debug: [...]
+              flash: [...]
+              print: [...]
+        """
+        target = self.get_target(target_name)
+        if not target:
+            return {}
+
+        compatible_cfg = target.get("compatible_probes", [])
+        if isinstance(compatible_cfg, dict):
+            by_mode: Dict[str, List[str]] = {}
+            for raw_mode, raw_interfaces in compatible_cfg.items():
+                mode = str(raw_mode).strip().lower()
+                if not mode:
+                    continue
+                by_mode[mode] = self._normalize_interface_list(raw_interfaces)
+            return by_mode
+
+        interfaces = self._normalize_interface_list(compatible_cfg)
+        return {
+            "debug": interfaces.copy(),
+            "flash": interfaces.copy(),
+            "print": interfaces.copy(),
+        }
+
+    def get_compatible_probes(self, target_name: str, mode: Optional[str] = None) -> List[str]:
+        """Get compatible probe interfaces for a target and optionally mode."""
+        by_mode = self.get_compatible_probes_by_mode(target_name)
+        if not by_mode:
+            return []
+
+        if isinstance(mode, str) and mode.strip():
+            return by_mode.get(mode.strip().lower(), [])
+
+        compatible_interfaces: List[str] = []
+        for interfaces in by_mode.values():
+            for interface in interfaces:
+                if interface not in compatible_interfaces:
+                    compatible_interfaces.append(interface)
+        return compatible_interfaces
+
     def get_command(self, target_name: str, interface: str, mode: str) -> Optional[str]:
         """
         Get command template for a specific target, interface, and mode
@@ -75,7 +148,7 @@ class Config:
         Args:
             target_name: Target device name (e.g., 'nrf52840')
             interface: Probe interface type (e.g., 'jlink', 'cmsis-dap')
-            mode: Operation mode ('debug' or 'flash')
+            mode: Operation mode ('debug', 'flash', or 'print')
 
         Returns:
             Command template string or None if not found
@@ -86,7 +159,18 @@ class Config:
 
         commands = target.get('commands', {})
         interface_commands = commands.get(interface, {})
-        return interface_commands.get(mode)
+        command = interface_commands.get(mode)
+        if command:
+            return command
+
+        interface_defaults = self.data.get("interface_defaults", {})
+        default_interface_cfg = interface_defaults.get(interface, {})
+        if not isinstance(default_interface_cfg, dict):
+            return None
+        default_commands = default_interface_cfg.get("commands", {})
+        if not isinstance(default_commands, dict):
+            return None
+        return default_commands.get(mode)
 
     def get_transport_config(self, target_name: str, interface: str) -> Dict:
         """Get transport policy for target/interface pair."""
@@ -296,7 +380,7 @@ class Config:
         """
         return command_template.format(**kwargs)
 
-    def is_probe_compatible(self, target_name: str, probe_id: int) -> bool:
+    def is_probe_compatible(self, target_name: str, probe_id: int, mode: Optional[str] = None) -> bool:
         """Check if a probe is compatible with a target"""
         target = self.get_target(target_name)
         if not target:
@@ -307,7 +391,7 @@ class Config:
             return False
 
         probe_interface = probe.get('interface')
-        compatible_probes = target.get('compatible_probes', [])
+        compatible_probes = self.get_compatible_probes(target_name, mode=mode)
         return probe_interface in compatible_probes
 
     def get_container_for_target(self, target_name: str, interface: str = None) -> Optional[str]:

@@ -22,6 +22,9 @@ config = get_config()
 
 PORT = config.server_port
 UPLOAD_DIR = config.upload_dir
+UART_BAUD_MIN = 300
+UART_BAUD_MAX = 3_000_000
+UART_BAUD_DEFAULT = 115200
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
@@ -78,7 +81,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             targets = {}
             for name, target_config in config.get_all_targets().items():
-                compatible_probes = target_config.get("compatible_probes", [])
+                compatible_probes_by_mode = config.get_compatible_probes_by_mode(name)
+                compatible_probes = config.get_compatible_probes(name)
                 transports = {}
                 for interface in compatible_probes:
                     transports[interface] = {
@@ -89,6 +93,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "description": target_config.get("description", ""),
                     "compatible_probes": compatible_probes,
                     "compatible_interfaces": compatible_probes,
+                    "compatible_probes_by_mode": compatible_probes_by_mode,
                     "container": target_config.get("container", ""),
                     "transports": transports,
                 }
@@ -147,10 +152,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             probe_id = form_data.get("probe")
             mode = form_data.get("mode")
             transport = form_data.get("transport")
+            baud_raw = form_data.get("baud")
 
             if not all([target, probe_id, mode]):
                 raise ValueError("Missing required fields: target, probe, mode")
 
+            mode = mode.strip().lower()
             if mode not in ["debug", "flash", "print"]:
                 raise ValueError(f"Invalid mode: {mode}. Must be 'debug', 'flash', or 'print'")
 
@@ -164,8 +171,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not probe:
                 raise ValueError(f"Unknown probe ID: {probe_id}")
 
-            if not config.is_probe_compatible(target, probe_id):
-                raise ValueError(f"Probe {probe_id} is not compatible with target {target}")
+            if not config.is_probe_compatible(target, probe_id, mode=mode):
+                raise ValueError(f"Probe {probe_id} is not compatible with target {target} in mode={mode}")
+
+            uart_baud = UART_BAUD_DEFAULT
+            if mode == "print" and baud_raw:
+                try:
+                    uart_baud = int(baud_raw)
+                except (TypeError, ValueError):
+                    raise ValueError("Invalid baud: must be an integer")
+                if uart_baud < UART_BAUD_MIN or uart_baud > UART_BAUD_MAX:
+                    raise ValueError(
+                        f"Invalid baud: must be between {UART_BAUD_MIN} and {UART_BAUD_MAX}"
+                    )
 
             interface = probe.get("interface", "")
             try:
@@ -204,6 +222,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 mode,
                 filename if firmware_path else "",
                 resolved_transport or "",
+                str(uart_baud),
             ]
 
             print(f"[DEBUG] Executing: {' '.join(cmd)}", file=sys.stderr)
@@ -215,6 +234,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             }
             self._send_json(200 if res.returncode == 0 else 500, resp)
 
+        except ValueError as e:
+            self._send_json(400, {"status": "error", "error": str(e)})
         except Exception as e:
             print(f"[ERROR] Dispatch failed: {e}", file=sys.stderr)
             import traceback

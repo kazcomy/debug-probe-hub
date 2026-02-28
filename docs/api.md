@@ -42,7 +42,10 @@ curl "http://<debug-hub-host>:8080/probes/search?interface=cmsis-dap&serial=C242
 ### `GET /targets`
 
 List supported targets.
-Each target includes compatible probe interfaces and transport policy (`default`/`allowed`) per interface.
+Each target includes:
+- `compatible_probes` (union across all modes, for backward compatibility)
+- `compatible_probes_by_mode` (`debug` / `flash` / `print`)
+- transport policy (`default`/`allowed`) per interface
 
 ```bash
 curl http://<debug-hub-host>:8080/targets
@@ -55,10 +58,14 @@ Flash firmware or start debug/print mode.
 - Required form fields: `target`, `probe`, `mode`
 - `mode`: `flash`, `debug`, or `print`
 - Optional form field: `transport` (for example: `swd`, `jtag`, `sdi`)
+- Optional form field: `baud` (print mode only; default: `115200`)
 - If `transport` is provided, it must be allowed by `targets.<target>.transports.<interface>.allowed`.
 - If `transport` is omitted, `targets.<target>.transports.<interface>.default` is used.
+- If `baud` is provided, it must be an integer in `300..3000000`.
 - For `flash`, attach firmware as `file=@...`
 - If the same `probe` already has an active `debug`/`print` session, dispatch returns busy until that session exits.
+- Probe compatibility is mode-aware (`targets.<target>.compatible_probes.<mode>` when configured).
+- Validation failures (for example invalid `baud`, unknown target/probe, incompatible mode) return HTTP `400`.
 
 Flash:
 
@@ -101,12 +108,22 @@ When `mode=debug` succeeds, connect your GDB client directly to:
 - `<debug-hub-host>:(ports.gdb_base + probe_id)`
 - Example: `gdb_base=3330`, `probe=1` -> `3331`
 
-Print (if target/interface supports it):
+Print via USB-UART (generic):
 
 ```bash
 curl -X POST http://<debug-hub-host>:8080/dispatch \
-  -F "target=ch32v203" \
-  -F "probe=4" \
+  -F "target=stm32g4" \
+  -F "probe=10" \
+  -F "mode=print" \
+  -F "baud=921600"
+```
+
+Print with default baud (`115200`):
+
+```bash
+curl -X POST http://<debug-hub-host>:8080/dispatch \
+  -F "target=stm32g4" \
+  -F "probe=10" \
   -F "mode=print"
 ```
 
@@ -149,6 +166,26 @@ curl -X POST http://<debug-hub-host>:8080/dispatch \
   -F "mode=debug"
 ```
 
+### Split debug/print probes (example: STM32G4)
+
+```bash
+# 1) Start GDB server via J-Link
+DBG_PROBE=$(curl -s "http://<debug-hub-host>:8080/probes/search?interface=jlink" | jq -r '.matches[0].id')
+curl -X POST http://<debug-hub-host>:8080/dispatch \
+  -F "target=stm32g4" \
+  -F "probe=$DBG_PROBE" \
+  -F "transport=swd" \
+  -F "mode=debug"
+
+# 2) Start UART print server via USB-UART probe
+UART_PROBE=$(curl -s "http://<debug-hub-host>:8080/probes/search?interface=usb-uart" | jq -r '.matches[0].id')
+curl -X POST http://<debug-hub-host>:8080/dispatch \
+  -F "target=stm32g4" \
+  -F "probe=$UART_PROBE" \
+  -F "mode=print" \
+  -F "baud=115200"
+```
+
 ## Debug quick start (LAN direct)
 
 1. Start debug session via `/dispatch` with `mode=debug`.
@@ -179,6 +216,7 @@ target remote remoteprogrammer.local.lan:3331
 - Probe busy means another active `debug`/`print` session is holding the probe lock.
 - Run `POST /session/stop` for the probe before resorting to service restart.
 - Target/transport mismatch can be checked via `GET /targets` (`allowed` transport list).
+- Mode mismatch can be checked via `GET /targets` (`compatible_probes_by_mode`).
 - Server process check: `systemctl status debug-probe-hub`
 - Server logs: `journalctl -u debug-probe-hub -n 100`
 - Port reachability from client: `nc -vz <debug-hub-host> <gdb_port>`

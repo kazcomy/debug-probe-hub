@@ -31,6 +31,12 @@ containers:
     build_context: ./docker/wch
     description: "WCH RISC-V tools (WCH OpenOCD)" 
 
+  uart:
+    name: debug-box-uart
+    image_name: debug-probe-hub-uart
+    build_context: ./docker/general
+    description: "USB-UART bridge tools (socat)"
+
 # Debug probe definitions
 probes:
   - id: 1
@@ -49,18 +55,20 @@ probes:
     interface: wch-link
 
   - id: 3
-    name: "WCH-Link (RISC-V #2)"
-    serial: "03AF8F068882"
-    vendor_id: "1a86"
-    product_id: "8010"
-    interface: wch-link
-
-  - id: 4
     name: "WCH-Link (RISC-V #3)"
     serial: "50CE8F06D5AF"
     vendor_id: "1a86"
     product_id: "8010"
     interface: wch-link
+
+  - id: 10
+    name: "USB-UART (WCH-LINK #2)"
+    serial: "03AF8F068882"
+    vendor_id: "1a86"
+    product_id: "8010"
+    interface: usb-uart
+    # Optional: if omitted, defaults to /dev/probes/tty_probe_<id>
+    # device_path: "/dev/probes/tty_probe_10"
 
 # Target device definitions
 targets:
@@ -68,8 +76,12 @@ targets:
     container:
       jlink: jlink
       cmsis-dap: cmsis_dap
+      usb-uart: uart
     description: "Nordic nRF52840"
-    compatible_probes: [jlink, cmsis-dap]
+    compatible_probes:
+      debug: [jlink, cmsis-dap]
+      flash: [jlink, cmsis-dap]
+      print: [jlink, usb-uart]
     transports:
       jlink:
         default: swd
@@ -99,8 +111,12 @@ targets:
   esp32s3:
     container:
       esp-usb-jtag: esp32
+      usb-uart: uart
     description: "Espressif ESP32-S3"
-    compatible_probes: [esp-usb-jtag]
+    compatible_probes:
+      debug: [esp-usb-jtag]
+      flash: [esp-usb-jtag]
+      print: [usb-uart]
     transports:
       esp-usb-jtag:
         default: jtag
@@ -114,8 +130,12 @@ targets:
     container:
       jlink: jlink
       cmsis-dap: cmsis_dap
+      usb-uart: uart
     description: "STM32G4 series"
-    compatible_probes: [jlink, cmsis-dap]
+    compatible_probes:
+      debug: [jlink, cmsis-dap]
+      flash: [jlink, cmsis-dap]
+      print: [usb-uart]
     transports:
       jlink:
         default: swd
@@ -132,9 +152,14 @@ targets:
         flash: "openocd -f interface/cmsis-dap.cfg -c 'transport select {transport}' -f target/stm32g4x.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
 
   ch32v003:
-    container: wch
+    container:
+      wch-link: wch
+      usb-uart: uart
     description: "WCH CH32V series (RISC-V)"
-    compatible_probes: [wch-link]
+    compatible_probes:
+      debug: [wch-link]
+      flash: [wch-link]
+      print: [wch-link, usb-uart]
     transports:
       wch-link:
         default: sdi
@@ -146,9 +171,14 @@ targets:
         print: "wlink serial | socat STDIN TCP-LISTEN:{rtt_port},reuseaddr,fork,bind=0.0.0.0"
 
   ch32v203:
-    container: wch
+    container:
+      wch-link: wch
+      usb-uart: uart
     description: "WCH CH32V series (RISC-V)"
-    compatible_probes: [wch-link]
+    compatible_probes:
+      debug: [wch-link]
+      flash: [wch-link]
+      print: [wch-link, usb-uart]
     transports:
       wch-link:
         default: sdi
@@ -158,6 +188,12 @@ targets:
         flash: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'adapter serial {serial}' -c 'program {firmware_path} verify reset exit'"
         debug: "openocd -f /opt/wch-toolchain/OpenOCD/OpenOCD/bin/wch-riscv.cfg -c 'adapter serial {serial}' -c 'gdb_port {gdb_port}' -c 'telnet_port {telnet_port}' -c 'bindto 0.0.0.0'"
         print: "wlink serial | socat STDIN TCP-LISTEN:{rtt_port},reuseaddr,fork,bind=0.0.0.0"
+
+# Interface-level fallback commands
+interface_defaults:
+  usb-uart:
+    commands:
+      print: "socat TCP-LISTEN:{print_port},reuseaddr,fork,bind=0.0.0.0 FILE:{device_path},raw,echo=0,b{uart_baud}"
 
 # Port allocation
 ports:
